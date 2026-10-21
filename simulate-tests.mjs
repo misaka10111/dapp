@@ -303,7 +303,7 @@ await scenario("成功项目：同阶段成果不能重复提交", {
 
 // ---------------------------------------------------------------- Part C
 console.log("\n=== Part C: front-end helpers (src/utils.js) ===\n");
-const { budget, percent, positiveEth, safeUrl, eth, errorMessage } = await import("./src/utils.js");
+const { budget, percent, positiveEth, safeUrl, eth, errorMessage, matchesFilter } = await import("./src/utils.js");
 
 // The UI must show exactly what the contract pays: floor(total*2/5) then the rest.
 let budgetMismatch = null;
@@ -342,6 +342,20 @@ record("C", "safeUrl 接受 https 链接", safeUrl("https://github.com/misaka101
 record("C", "eth() 正确显示 wei", eth(100n) === "0.0000000000000001", eth(100n));
 record("C", "errorMessage 识别 MetaMask 拒绝", errorMessage({ code: 4001 }).includes("rejected"));
 record("C", "errorMessage 识别余额不足", errorMessage({ code: "INSUFFICIENT_FUNDS" }).includes("Insufficient"));
+
+// Project list filters (moved to utils.js so they stay testable)
+const owner = "0x80e171743f3FFA2E266d174FF8722364AE6914d7";
+const sample = { creator: owner, status: 1n, submitted: true, approved: false, contribution: 10n, approvedNow: false };
+record("C", "筛选 all 命中所有项目", matchesFilter("all", sample, owner));
+record("C", "筛选 mine 大小写不敏感", matchesFilter("mine", sample, owner.toLowerCase()));
+record("C", "筛选 mine 排除非创建者", !matchesFilter("mine", sample, B));
+record("C", "筛选 backed 只看有出资的项目", matchesFilter("backed", sample, B) && !matchesFilter("backed", { ...sample, contribution: 0n }, B));
+record("C", "筛选 review 命中待我审批", matchesFilter("review", sample, B));
+record("C", "筛选 review 排除已投票", !matchesFilter("review", { ...sample, approvedNow: true }, B));
+record("C", "筛选 review 排除未提交成果", !matchesFilter("review", { ...sample, submitted: false }, B));
+record("C", "筛选 review 排除已通过", !matchesFilter("review", { ...sample, approved: true }, B));
+record("C", "筛选 review 排除未出资者", !matchesFilter("review", { ...sample, contribution: 0n }, B));
+record("C", "筛选 backed 处理缺失 contribution", !matchesFilter("backed", { creator: owner }, B));
 
 const passed = results.filter((r) => r.pass).length;
 console.log(`\n================ ${passed}/${results.length} passed, ${results.length - passed} failed ================`);
