@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserProvider, getAddress } from "ethers";
 import {
   CONFIGURED,
@@ -17,6 +17,7 @@ import {
   budget,
   errorMessage,
   eth,
+  matchesFilter,
   percent,
   positiveEth,
   safeUrl,
@@ -24,18 +25,54 @@ import {
 } from "./utils.js";
 
 const STATUS = ["Funding", "Successful", "Failed", "Completed"];
+const TONE = ["funding", "successful", "failed", "completed"];
 const PAGE_SIZE = 6;
+
+const FILTERS = [
+  { key: "all", label: "All projects" },
+  { key: "mine", label: "Created by me" },
+  { key: "backed", label: "I backed" },
+  { key: "review", label: "Needs my approval" },
+];
+
 function Badge({ status, expired }) {
   return (
-    <span className={`badge status-${status}`}>
+    <span className={`badge badge-${expired ? "pending" : TONE[status]}`}>
+      <i />
       {expired ? "Awaiting finalization" : STATUS[status]}
     </span>
   );
 }
-function Progress({ value, label }) {
+
+// Cards need a reason to act now, so show time left instead of a raw timestamp.
+function countdown(deadlineSec, now) {
+  const left = Number(deadlineSec) - now;
+  if (left <= 0) return { text: "Deadline passed", urgent: false, over: true };
+  const days = Math.floor(left / 86400);
+  const hours = Math.floor((left % 86400) / 3600);
+  const minutes = Math.floor((left % 3600) / 60);
+  const text =
+    days > 0
+      ? `${days}d ${hours}h left`
+      : hours > 0
+        ? `${hours}h ${minutes}m left`
+        : `${minutes}m left`;
+  return { text, urgent: left < 86400, over: false };
+}
+
+// Stage position is already on chain, so the card can show progress for free.
+function stageText(project) {
+  const stage = Number(project.currentMilestone);
+  if (Number(project.status) === 1) return `Milestone ${stage + 1} of 2`;
+  if (Number(project.status) === 3) return "Both milestones released";
+  if (Number(project.status) === 2) return "Funding failed · refunds open";
+  return `Target ${eth(project.target)} ETH`;
+}
+
+function Progress({ value, label, tone }) {
   return (
     <div
-      className="progress"
+      className={`progress${tone ? ` tone-${tone}` : ""}`}
       role="progressbar"
       aria-label={label}
       aria-valuemin={0}
@@ -46,11 +83,97 @@ function Progress({ value, label }) {
     </div>
   );
 }
+
 function Eth({ value }) {
   return (
     <span className="amount">
       {eth(value)} <small>ETH</small>
     </span>
+  );
+}
+
+function Skeleton() {
+  return (
+    <div className="project-grid" aria-hidden="true">
+      {[0, 1, 2, 3].map((i) => (
+        <div className="skeleton-card" key={i} />
+      ))}
+    </div>
+  );
+}
+
+// The right rail is never blank, so the layout does not jump on first click.
+function DetailPlaceholder({ onPick }) {
+  return (
+    <section className="detail-panel detail-placeholder" aria-label="Project details">
+      <p className="eyebrow">Project detail</p>
+      <h2>Pick a project to see its milestones</h2>
+      <p className="muted">
+        Each project holds two stages. Evidence is submitted first, then backers
+        approve with the weight they contributed, and only then can the creator
+        withdraw.
+      </p>
+      <ul className="placeholder-list">
+        <li>
+          <strong>40%</strong> released after milestone 1 is approved
+        </li>
+        <li>
+          <strong>60%</strong> released after milestone 2 is approved
+        </li>
+        <li>
+          <strong>&gt; 50%</strong> of contributed weight is required, exactly 50%
+          does not pass
+        </li>
+      </ul>
+      <button className="ghost" onClick={onPick}>
+        Browse projects <span>↓</span>
+      </button>
+    </section>
+  );
+}
+
+// Which contract am I looking at? Cheap to answer, and it fills the gap under
+// the list when the detail rail is taller than the cards.
+function ContractCard({ count }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(CONTRACT_ADDRESS);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  }
+  if (!CONFIGURED) return null;
+  return (
+    <section className="panel contract-card" aria-label="Contract information">
+      <div className="contract-head">
+        <p className="eyebrow">Contract</p>
+        <span className="network">
+          <i />
+          Sepolia
+        </span>
+      </div>
+      <code className="contract-address">{CONTRACT_ADDRESS}</code>
+      <div className="contract-foot">
+        <span>
+          {count.toString()} project{count === 1n ? "" : "s"} on chain
+        </span>
+        <span className="contract-actions">
+          <button className="ghost tiny" onClick={copy}>
+            {copied ? "Copied ✓" : "Copy"}
+          </button>
+          <a
+            href={`${EXPLORER}/address/${CONTRACT_ADDRESS}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Etherscan ↗
+          </a>
+        </span>
+      </div>
+    </section>
   );
 }
 
@@ -96,11 +219,13 @@ function CreateProject({ ready, busy, transact, onCreated }) {
     <section className="panel create-panel">
       <div className="section-heading">
         <div>
+          <p className="eyebrow">New campaign</p>
           <h2>Create a project</h2>
         </div>
       </div>
       <p className="muted">
-        Enter the funding target, deadline, and two milestone goals.
+        Set the funding target, the deadline, and the two deliverables backers
+        will approve.
       </p>
       <form onSubmit={submit}>
         <fieldset disabled={!ready || busy}>
@@ -110,7 +235,7 @@ function CreateProject({ ready, busy, transact, onCreated }) {
               name="name"
               required
               maxLength={120}
-              placeholder="Project name"
+              placeholder="e.g. Campus NFT ticketing"
             />
           </label>
           <label>
@@ -120,7 +245,7 @@ function CreateProject({ ready, busy, transact, onCreated }) {
               required
               maxLength={4000}
               rows={3}
-              placeholder="Describe the project"
+              placeholder="What are you building, and why should backers fund it?"
             />
           </label>
           <div className="form-grid">
@@ -140,36 +265,37 @@ function CreateProject({ ready, busy, transact, onCreated }) {
           </div>
           <div className="form-grid">
             <label>
-              Milestone 1 · 40%
+              Milestone 1 · 40% of funds
               <textarea
                 name="firstGoal"
                 required
                 maxLength={2000}
                 rows={3}
-                placeholder="First deliverable"
+                placeholder="First deliverable backers will review"
               />
             </label>
             <label>
-              Milestone 2 · 60%
+              Milestone 2 · remaining 60%
               <textarea
                 name="secondGoal"
                 required
                 maxLength={2000}
                 rows={3}
-                placeholder="Final deliverable"
+                placeholder="Final deliverable backers will review"
               />
             </label>
           </div>
           <p className="form-note">
-            The target, deadline and 40 / 60 split are permanent after creation.
-            Gas is paid separately.
+            Target, deadline and the 40 / 60 split are permanent after
+            creation. Gas is paid separately, and backers must approve each
+            milestone before funds are released.
           </p>
           <button className="primary" type="submit">
             Create on Sepolia <span>↗</span>
           </button>
         </fieldset>
         {!ready && (
-          <p className="muted">
+          <p className="muted" style={{ marginTop: 12 }}>
             Configure the contract and connect MetaMask on Sepolia to create a
             project.
           </p>
@@ -184,7 +310,7 @@ function CreateProject({ ready, busy, transact, onCreated }) {
   );
 }
 
-function ProjectDetails({ data, account, ready, busy, now, transact }) {
+function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) {
   const {
     project: p,
     milestones,
@@ -197,6 +323,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact }) {
   const isCreator =
     account && account.toLowerCase() === p.creator.toLowerCase();
   const expired = p.status === 0n && now >= Number(p.deadline);
+
   async function contribute(event) {
     event.preventDefault();
     setError("");
@@ -237,15 +364,25 @@ function ProjectDetails({ data, account, ready, busy, now, transact }) {
       setError(errorMessage(e));
     }
   }
+
   return (
-    <section className="panel detail-panel" aria-label="Project details">
-      <div className="section-heading">
-        <p className="eyebrow">PROJECT #{id.toString().padStart(3, "0")}</p>
-        <Badge status={Number(p.status)} expired={expired} />
+    <section className="detail-panel" aria-label="Project details">
+      <div className="detail-head">
+        <p className="eyebrow">Project #{id.toString().padStart(3, "0")}</p>
+        <div className="detail-head-actions">
+          <Badge status={Number(p.status)} expired={expired} />
+          <button
+            className="icon-button"
+            aria-label="Close project details"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
       </div>
       <h2>{p.name}</h2>
       <p className="description">{p.description}</p>
-      <p className="muted">
+      <p className="creator-line">
         Created by{" "}
         <a
           href={`${EXPLORER}/address/${p.creator}`}
@@ -254,8 +391,9 @@ function ProjectDetails({ data, account, ready, busy, now, transact }) {
         >
           {shortAddress(p.creator)}
         </a>
-        {isCreator && " · You"}
+        {isCreator && " · this is you"}
       </p>
+
       <div className="funding-number">
         <Eth value={p.totalRaised} />
         <span className="muted">of {eth(p.target)} ETH goal</span>
@@ -263,35 +401,46 @@ function ProjectDetails({ data, account, ready, busy, now, transact }) {
       <Progress
         value={percent(p.totalRaised, p.target)}
         label="Funding progress"
+        tone={p.status === 2n ? "muted" : p.status === 0n ? undefined : "success"}
       />
+
       <div className="detail-stats">
-        <div>
+        <div className="stat">
           <span>Deadline</span>
-          <strong>
-            {new Date(Number(p.deadline) * 1000).toLocaleString()}
-          </strong>
+          <strong>{new Date(Number(p.deadline) * 1000).toLocaleString()}</strong>
         </div>
-        <div>
+        <div className="stat">
           <span>Held in escrow</span>
           <strong>
             <Eth value={p.escrowBalance} />
           </strong>
         </div>
-        <div>
+        <div className="stat">
           <span>Your contribution</span>
           <strong>
             <Eth value={contribution} />
           </strong>
         </div>
+        <div className="stat">
+          <span>Funding goal</span>
+          <strong>
+            <Eth value={p.target} />
+          </strong>
+        </div>
       </div>
+
       {refunded && (
-        <p className="notice">Your original contribution has been refunded.</p>
+        <p className="success-note">
+          ✓ Your original contribution has been refunded.
+        </p>
       )}
+
       {p.status === 0n &&
         !expired &&
         (isCreator ? (
-          <p className="notice">
-            You are the creator. Creators cannot fund their own project.
+          <p className="notice inline">
+            <strong>You are the creator of this project</strong>
+            <p>Creators cannot fund their own campaign.</p>
           </p>
         ) : (
           <form className="contribute-form" onSubmit={contribute}>
@@ -311,12 +460,13 @@ function ProjectDetails({ data, account, ready, busy, now, transact }) {
             </button>
           </form>
         ))}
+
       {expired && (
-        <div className="notice">
-          <p>
-            The deadline has passed without reaching the target. Finalize
-            funding to enable full refunds.
-          </p>
+        <div className="notice network-notice">
+          <div>
+            <strong>Deadline passed without reaching the goal</strong>
+            <p>Finalize funding to enable full refunds for every backer.</p>
+          </div>
           <button
             disabled={!ready || busy}
             onClick={() =>
@@ -327,6 +477,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact }) {
           </button>
         </div>
       )}
+
       {p.status === 2n && contribution > 0n && !refunded && (
         <button
           className="primary"
@@ -336,53 +487,78 @@ function ProjectDetails({ data, account, ready, busy, now, transact }) {
           Claim refund · {eth(contribution)} ETH
         </button>
       )}
+
       {p.status === 3n && (
         <p className="success-note">
           ✓ Both milestones are complete. All project funds have been released.
         </p>
       )}
+
       <div className="section-heading milestone-heading">
         <h3>The milestones</h3>
-        <span className="muted">Evidence → Approval → Withdrawal</span>
+        <span>Evidence → Approval → Withdrawal</span>
       </div>
+
       {milestones.map((m, index) => {
         const current = p.status === 1n && BigInt(index) === p.currentMilestone;
+        const projected = p.status === 0n;
+        const stateLabel = m.withdrawn
+          ? "Released"
+          : m.approved
+            ? "Approved"
+            : m.submitted
+              ? "In review"
+              : current
+                ? "Awaiting evidence"
+                : "Pending";
+        const stateClass = m.withdrawn
+          ? "is-released"
+          : m.approved
+            ? "is-approved"
+            : m.submitted
+              ? "is-review"
+              : "";
         return (
           <article
-            className={`milestone ${m.withdrawn ? "done" : ""}`}
+            className={`milestone ${m.withdrawn ? "done" : ""} ${current ? "current" : ""}`}
             key={index}
           >
             <div className="milestone-top">
               <span className="milestone-number">0{index + 1}</span>
               <div>
                 <h4>
-                  Milestone {index + 1}{" "}
-                  <span>{index === 0 ? "40%" : "60%"}</span>
+                  Milestone {index + 1}
+                  <span className="share">{index === 0 ? "40%" : "60%"}</span>
                 </h4>
                 <p>{m.goal}</p>
               </div>
-              <span className="milestone-state">
-                {m.withdrawn
-                  ? "Released ✓"
-                  : m.approved
-                    ? "Approved"
-                    : m.submitted
-                      ? "In review"
-                      : current
-                        ? "Awaiting evidence"
-                        : "Pending"}
+              <span className={`milestone-state ${stateClass}`}>
+                {stateLabel}
               </span>
             </div>
-            <p className="muted">
-              {p.status === 0n
-                ? "Budget after successful funding"
-                : "Stage budget"}
-              : {eth(budget(p.totalRaised, index))} ETH · Released:{" "}
-              {eth(m.withdrawnAmount)} ETH
-            </p>
+
+            <div className="stage-meta">
+              <span>
+                {projected ? "Projected" : "Stage budget"}:{" "}
+                <b>
+                  {projected && p.totalRaised === 0n
+                    ? "—"
+                    : `${eth(budget(p.totalRaised, index))} ETH`}
+                </b>
+                {projected && p.totalRaised > 0n && (
+                  <> of {eth(p.totalRaised)} ETH raised</>
+                )}
+              </span>
+              {m.withdrawn && (
+                <span>
+                  Released: <b>{eth(m.withdrawnAmount)} ETH</b>
+                </span>
+              )}
+            </div>
+
             {m.submitted && (
               <div className="evidence">
-                <p className="eyebrow">CREATOR’S EVIDENCE</p>
+                <p className="eyebrow">Creator’s evidence</p>
                 <p>{m.evidence}</p>
                 {safeUrl(m.evidenceUrl) ? (
                   <a
@@ -397,77 +573,84 @@ function ProjectDetails({ data, account, ready, busy, now, transact }) {
                 )}
               </div>
             )}
+
             <div className="approval-caption">
               <span>
-                Approval weight · {eth(m.approvalWeight)} / {eth(p.totalRaised)}{" "}
-                ETH
+                Approval weight · {eth(m.approvalWeight)} /{" "}
+                {eth(p.totalRaised)} ETH
               </span>
               <strong>{percent(m.approvalWeight, p.totalRaised)}%</strong>
             </div>
             <Progress
               value={percent(m.approvalWeight, p.totalRaised)}
               label={`Milestone ${index + 1} approval`}
+              tone={m.approved ? "success" : undefined}
             />
-            <p className="form-note">
-              Strictly more than 50% is required. Exactly 50% does not pass.
+            <p className="form-note tight">
+              Needs more than 50% of contributed weight. Exactly 50% fails.
             </p>
-            {current && !m.submitted && isCreator && (
-              <form onSubmit={(e) => evidence(e, index)}>
-                <fieldset disabled={!ready || busy}>
-                  <label>
-                    What did you deliver?
-                    <textarea
-                      name="evidence"
-                      required
-                      maxLength={4000}
-                      rows={3}
-                    />
-                  </label>
-                  <label>
-                    GitHub / demo URL
-                    <input
-                      name="url"
-                      type="url"
-                      required
-                      maxLength={1000}
-                      placeholder="https://github.com/…"
-                    />
-                  </label>
-                  <button className="primary">Submit evidence</button>
-                </fieldset>
-              </form>
-            )}
-            {current && m.submitted && !m.approved && contribution > 0n && (
-              <button
-                className="primary"
-                disabled={!ready || busy || approvals[index]}
-                onClick={() =>
-                  transact(`Approve milestone ${index + 1}`, (c) =>
-                    c.approveMilestone(id, index),
-                  )
-                }
-              >
-                {approvals[index]
-                  ? "You have approved this milestone"
-                  : `Approve · ${eth(contribution)} ETH weight`}
-              </button>
-            )}
-            {current && m.approved && !m.withdrawn && isCreator && (
-              <button
-                className="primary"
-                disabled={!ready || busy}
-                onClick={() =>
-                  transact(`Withdraw milestone ${index + 1}`, (c) =>
-                    c.withdrawMilestone(id, index),
-                  )
-                }
-              >
-                Withdraw · {eth(budget(p.totalRaised, index))} ETH ↗
-              </button>
-            )}
+
+            <div className="milestone-actions">
+              {current && !m.submitted && isCreator && (
+                <form style={{ width: "100%" }} onSubmit={(e) => evidence(e, index)}>
+                  <fieldset disabled={!ready || busy}>
+                    <label>
+                      What did you deliver?
+                      <textarea
+                        name="evidence"
+                        required
+                        maxLength={4000}
+                        rows={3}
+                        placeholder="Summarise the deliverable for your backers"
+                      />
+                    </label>
+                    <label>
+                      GitHub / demo URL
+                      <input
+                        name="url"
+                        type="url"
+                        required
+                        maxLength={1000}
+                        placeholder="https://github.com/…"
+                      />
+                    </label>
+                    <button className="primary">Submit evidence</button>
+                  </fieldset>
+                </form>
+              )}
+              {current && m.submitted && !m.approved && contribution > 0n && (
+                <button
+                  className="primary"
+                  disabled={!ready || busy || approvals[index]}
+                  onClick={() =>
+                    transact(`Approve milestone ${index + 1}`, (c) =>
+                      c.approveMilestone(id, index),
+                    )
+                  }
+                >
+                  {approvals[index]
+                    ? "You have approved this milestone"
+                    : `Approve · ${eth(contribution)} ETH weight`}
+                </button>
+              )}
+              {current && m.approved && !m.withdrawn && isCreator && (
+                <button
+                  className="primary"
+                  disabled={!ready || busy}
+                  onClick={() =>
+                    transact(`Withdraw milestone ${index + 1}`, (c) =>
+                      c.withdrawMilestone(id, index),
+                    )
+                  }
+                >
+                  Withdraw · {eth(budget(p.totalRaised, index))} ETH ↗
+                </button>
+              )}
+            </div>
           </article>
         );
       })}
+
       {!ready && (
         <p className="form-note">Connect MetaMask on Sepolia to take part.</p>
       )}
@@ -494,6 +677,8 @@ export default function App() {
   const [page, setPage] = useState(0),
     [selected, setSelected] = useState(null),
     [detail, setDetail] = useState(null);
+  const [filter, setFilter] = useState("all"),
+    [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading] = useState(false),
     [loadError, setLoadError] = useState("");
   const [walletError, setWalletError] = useState(""),
@@ -504,7 +689,8 @@ export default function App() {
   const requestId = useRef(0),
     txLock = useRef(false),
     walletEpoch = useRef(0),
-    refreshRef = useRef(null);
+    refreshRef = useRef(null),
+    detailRef = useRef(null);
   const ready = CONFIGURED && !!account && chain === SEPOLIA_CHAIN_ID;
   const busy = tx?.status === "wallet" || tx?.status === "pending";
 
@@ -531,10 +717,30 @@ export default function App() {
       ).filter((id) => id >= 0n);
       const [rows, details] = await Promise.all([
         Promise.all(
-          ids.map(async (id) => ({
-            id,
-            ...(await contract.getProject(id, snapshot)).toObject(),
-          })),
+          ids.map(async (id) => {
+            const project = await contract.getProject(id, snapshot);
+            const row = { id, ...project.toObject() };
+            if (!account) return row;
+            // Extra per-row data powers the "I backed" / "needs my approval"
+            // filters. Reads only, so no wallet prompt.
+            const stage = Number(project.currentMilestone);
+            const [contribution, approvedNow] = await Promise.all([
+              contract.contributions(id, account, snapshot),
+              contract.hasApproved(id, stage, account, snapshot),
+            ]);
+            const extra = {
+              contribution,
+              approvedNow,
+              submitted: false,
+              approved: false,
+            };
+            if (Number(project.status) === 1) {
+              const milestone = await contract.getMilestone(id, stage, snapshot);
+              extra.submitted = milestone.submitted;
+              extra.approved = milestone.approved;
+            }
+            return { ...row, ...extra };
+          }),
         ),
         selected === null
           ? null
@@ -571,6 +777,7 @@ export default function App() {
       setCount(total);
       setProjects(rows);
       setDetail(details);
+      setLastUpdated(new Date());
     } catch (e) {
       if (request === requestId.current) {
         setLoadError(errorMessage(e));
@@ -644,6 +851,24 @@ export default function App() {
       wallet.removeListener("disconnect", disconnected);
     };
   }, []);
+
+  // On stacked layouts the detail sits below the grid, so bring it into view.
+  // On wide screens it is a sticky rail and must not steal the scroll position.
+  useEffect(() => {
+    if (!detail || !detailRef.current) return;
+    if (!window.matchMedia("(max-width: 1080px)").matches) return;
+    detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [detail?.id]);
+
+  // Clear finished transaction banners automatically; errors linger a bit longer.
+  useEffect(() => {
+    if (!tx || tx.status === "wallet" || tx.status === "pending") return;
+    const timeout = setTimeout(
+      () => setTx(null),
+      tx.status === "error" ? 12000 : 7000,
+    );
+    return () => clearTimeout(timeout);
+  }, [tx]);
 
   async function connect() {
     setWalletBusy(true);
@@ -727,76 +952,133 @@ export default function App() {
     }
   }
 
+  const visible = useMemo(
+    () => projects.filter((p) => matchesFilter(filter, p, account)),
+    [projects, filter, account],
+  );
+  const filterCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        FILTERS.map((f) => [
+          f.key,
+          projects.filter((p) => matchesFilter(f.key, p, account)).length,
+        ]),
+      ),
+    [projects, account],
+  );
+  const networkState =
+    chain === null ? "idle" : chain === SEPOLIA_CHAIN_ID ? "ok" : "wrong";
+
   return (
-    <>
+    <div className="shell">
       <header className="site-header">
-        <a className="brand" href="#" onClick={() => setTab("explore")}>
-          MilestoneFund
-        </a>
-        <nav aria-label="Main navigation">
-          <button
-            className={tab === "explore" ? "active" : ""}
-            onClick={() => setTab("explore")}
-          >
-            Explore projects
+        <div className="header-inner">
+          <button className="brand" onClick={() => setTab("explore")}>
+            <span className="brand-mark">M</span>
+            MilestoneFund
           </button>
-          <button
-            className={tab === "create" ? "active" : ""}
-            onClick={() => setTab("create")}
-          >
-            Create project
-          </button>
-        </nav>
-        <div className="wallet-controls">
-          <span
-            className={`network ${chain !== null && chain !== SEPOLIA_CHAIN_ID ? "wrong-network" : ""}`}
-          >
-            <i />
-            {chain !== null && chain !== SEPOLIA_CHAIN_ID
-              ? "Wrong network"
-              : "Sepolia testnet"}
-          </span>
-          <button
-            className="wallet-button"
-            disabled={walletBusy}
-            onClick={connect}
-          >
-            {walletBusy
-              ? "Connecting…"
-              : account
-                ? shortAddress(account)
-                : "Connect MetaMask"}{" "}
-            <span>↗</span>
-          </button>
+          <nav aria-label="Main navigation">
+            <button
+              className={tab === "explore" ? "active" : ""}
+              onClick={() => setTab("explore")}
+            >
+              Explore
+            </button>
+            <button
+              className={tab === "create" ? "active" : ""}
+              onClick={() => setTab("create")}
+            >
+              Create project
+            </button>
+          </nav>
+          <div className="wallet-controls">
+            <span className={`network ${networkState}`}>
+              <i />
+              {chain === null
+                ? "Wallet not connected"
+                : chain === SEPOLIA_CHAIN_ID
+                  ? "Sepolia testnet"
+                  : "Wrong network"}
+            </span>
+            <button
+              className={`wallet-button ${account ? "connected" : ""}`}
+              disabled={walletBusy}
+              onClick={connect}
+            >
+              {walletBusy
+                ? "Connecting…"
+                : account
+                  ? shortAddress(account)
+                  : "Connect MetaMask"}
+              <span>↗</span>
+            </button>
+          </div>
         </div>
       </header>
+
       <main>
-        <section className="page-intro">
-          <h1>Milestone crowdfunding</h1>
-          <p>
-            Create projects, contribute test ETH, and approve milestone
-            releases.
-          </p>
-          <div className="project-rules">
-            <span>Milestone 1: 40%</span>
-            <span>Milestone 2: remaining 60%</span>
-            <span>Approval: more than 50%</span>
-            <span>Sepolia test ETH only</span>
-          </div>
-        </section>
+        {tab === "explore" && (
+          <section className="page-intro">
+            <div className="hero-grid">
+              <div>
+                <p className="eyebrow">COMP7610 · Sepolia testnet</p>
+                <h1>Fund work in two approved milestones.</h1>
+                <p className="lede">
+                  Backers pool test ETH into escrow. The creator delivers,
+                  backers approve with the weight they contributed, and funds
+                  unlock 40% / 60% — no platform in the middle.
+                </p>
+              </div>
+              <div className="flow">
+                <div className="flow-step">
+                  <span className="flow-num">1</span>
+                  <div>
+                    <strong>Contribute before the deadline</strong>
+                    <span className="body">
+                      Every contribution is recorded on-chain with its weight.
+                    </span>
+                  </div>
+                </div>
+                <div className="flow-step">
+                  <span className="flow-num">2</span>
+                  <div>
+                    <strong>Creator submits evidence</strong>
+                    <span className="body">
+                      A summary plus a GitHub or demo link for each milestone.
+                    </span>
+                  </div>
+                </div>
+                <div className="flow-step">
+                  <span className="flow-num">3</span>
+                  <div>
+                    <strong>Backers approve, funds release</strong>
+                    <span className="body">
+                      More than 50% of weight unlocks 40%, then the remaining
+                      60%.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {!CONFIGURED && (
           <aside className="notice config-notice" role="status">
-            <strong>
-              {CONFIG_ERROR
-                ? "Configuration needs attention"
-                : "Sepolia contract not configured"}
-            </strong>
-            <p>
-              {CONFIG_ERROR ||
-                "No contract is configured yet. Deploy contracts/MilestoneFund.sol in Remix, put its address in VITE_CONTRACT_ADDRESS in .env.local, then restart Vite. Real project data will appear here."}
-            </p>
+            <div>
+              <strong>
+                {CONFIG_ERROR
+                  ? "Configuration needs attention"
+                  : "Sepolia contract not configured"}
+              </strong>
+              <p>
+                {CONFIG_ERROR ||
+                  "No contract is configured yet. Deploy contracts/MilestoneFund.sol in Remix, put its address in VITE_CONTRACT_ADDRESS in .env.local, then restart Vite. Real project data will appear here."}
+              </p>
+            </div>
           </aside>
         )}
+
         {chain !== null && chain !== SEPOLIA_CHAIN_ID && (
           <aside className="notice network-notice">
             <div>
@@ -810,41 +1092,13 @@ export default function App() {
             </button>
           </aside>
         )}
+
         {walletError && (
           <p className="error" role="alert">
             {walletError}
           </p>
         )}
-        {tx && (
-          <aside
-            className={`transaction tx-${tx.status}`}
-            role="status"
-            aria-live="polite"
-          >
-            <div>
-              <strong>
-                {tx.label} ·{" "}
-                {tx.status === "wallet"
-                  ? "Waiting for wallet confirmation"
-                  : tx.status === "pending"
-                    ? "Transaction processing"
-                    : tx.status === "success"
-                      ? "Transaction confirmed"
-                      : "Transaction failed"}
-              </strong>
-              {tx.message && <p>{tx.message}</p>}
-            </div>
-            {tx.hash && (
-              <a
-                href={`${EXPLORER}/tx/${tx.hash}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View on Etherscan ↗
-              </a>
-            )}
-          </aside>
-        )}
+
         {tab === "create" ? (
           <CreateProject
             ready={ready}
@@ -874,6 +1128,34 @@ export default function App() {
                 {loading ? "Loading…" : "Refresh ↻"}
               </button>
             </div>
+
+            {!loadError && projects.length > 0 && (
+              <div className="toolbar">
+                <div className="filters" role="tablist" aria-label="Filters">
+                  {FILTERS.map((f) => (
+                    <button
+                      key={f.key}
+                      role="tab"
+                      aria-selected={filter === f.key}
+                      className={filter === f.key ? "active" : ""}
+                      disabled={f.key !== "all" && !account}
+                      onClick={() => setFilter(f.key)}
+                    >
+                      {f.label}
+                      <em>{filterCounts[f.key] ?? 0}</em>
+                    </button>
+                  ))}
+                </div>
+                <span className="stamp">
+                  {!account
+                    ? "Connect MetaMask to filter by your activity"
+                    : lastUpdated
+                      ? `Updated ${lastUpdated.toLocaleTimeString()} · auto-refresh 15s`
+                      : ""}
+                </span>
+              </div>
+            )}
+
             {loadError ? (
               <div className="notice error" role="alert">
                 <strong>Could not load on-chain data</strong>
@@ -886,99 +1168,168 @@ export default function App() {
                 )}
               </div>
             ) : (
-              <>
-                {loading && !projects.length ? (
-                  <div className="empty-state">
-                    Reading the Sepolia contract…
-                  </div>
-                ) : projects.length === 0 ? (
-                  <div className="empty-state">
-                    <h3>
-                      {CONFIGURED
-                        ? "No projects yet."
-                        : "Contract not configured."}
-                    </h3>
-                    <p>
-                      {CONFIGURED
-                        ? "No projects on this page. Create a project to get started."
-                        : "Connect a deployed contract to explore real projects and their progress."}
-                    </p>
-                    <button onClick={() => setTab("create")}>
-                      Create a project <span>↗</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="project-grid">
-                    {projects.map((p) => (
+              <div className={`workspace${detail ? " with-detail" : ""}`}>
+                <div className="list-column">
+                  {loading && !projects.length ? (
+                    <Skeleton />
+                  ) : projects.length === 0 ? (
+                    <div className="empty-state">
+                      <h3>
+                        {CONFIGURED
+                          ? "No projects yet."
+                          : "Contract not configured."}
+                      </h3>
+                      <p>
+                        {CONFIGURED
+                          ? "Nothing has been created on this contract yet. Start the first campaign."
+                          : "Connect a deployed contract to explore real projects and their progress."}
+                      </p>
                       <button
-                        className={`project-card ${selected === p.id ? "selected" : ""}`}
-                        key={p.id.toString()}
-                        onClick={() => setSelected(p.id)}
-                        aria-pressed={selected === p.id}
+                        className="primary"
+                        onClick={() => setTab("create")}
                       >
-                        <div className="card-top">
-                          <span className="project-id">
-                            PROJECT #{p.id.toString().padStart(3, "0")}
-                          </span>
-                          <Badge
-                            status={Number(p.status)}
-                            expired={
-                              p.status === 0n && now >= Number(p.deadline)
-                            }
-                          />
-                        </div>
-                        <h3>{p.name}</h3>
-                        <p className="card-description">{p.description}</p>
-                        <div className="card-amount">
-                          <Eth value={p.totalRaised} />
-                          <span>{percent(p.totalRaised, p.target)}%</span>
-                        </div>
-                        <Progress
-                          value={percent(p.totalRaised, p.target)}
-                          label={`${p.name} funding`}
-                        />
-                        <div className="card-bottom">
-                          <span>of {eth(p.target)} ETH</span>
-                          <span>View project ↗</span>
-                        </div>
+                        Create a project <span>↗</span>
                       </button>
-                    ))}
-                  </div>
-                )}
-                {count > BigInt(PAGE_SIZE) && (
-                  <div className="pagination">
-                    <button
-                      disabled={page === 0 || loading}
-                      onClick={() => setPage((p) => p - 1)}
-                    >
-                      ← Newer
-                    </button>
-                    <span>Page {page + 1}</span>
-                    <button
-                      disabled={
-                        BigInt((page + 1) * PAGE_SIZE) >= count || loading
+                    </div>
+                  ) : visible.length === 0 ? (
+                    <div className="empty-state">
+                      <h3>Nothing matches this filter</h3>
+                      <p>
+                        Filters apply to the {projects.length} projects loaded on
+                        this page. Try another page or switch back to all
+                        projects.
+                      </p>
+                      <button onClick={() => setFilter("all")}>Show all</button>
+                    </div>
+                  ) : (
+                    <div className="project-grid">
+                      {visible.map((p) => {
+                        const left = countdown(p.deadline, now);
+                        const showDeadline = p.status === 0n && !left.over;
+                        return (
+                          <button
+                            className={`project-card ${selected === p.id ? "selected" : ""}`}
+                            key={p.id.toString()}
+                            onClick={() => setSelected(p.id)}
+                            aria-pressed={selected === p.id}
+                          >
+                            <div className="card-top">
+                              <span className="project-id">
+                                PROJECT #{p.id.toString().padStart(3, "0")}
+                              </span>
+                              <Badge
+                                status={Number(p.status)}
+                                expired={
+                                  p.status === 0n && now >= Number(p.deadline)
+                                }
+                              />
+                            </div>
+                            <h3>{p.name}</h3>
+                            <p className="card-description">{p.description}</p>
+                            <div className="card-amount">
+                              <Eth value={p.totalRaised} />
+                              <span className="pct">
+                                {percent(p.totalRaised, p.target)}%
+                              </span>
+                            </div>
+                            <Progress
+                              value={percent(p.totalRaised, p.target)}
+                              label={`${p.name} funding`}
+                              tone={
+                                p.status === 2n
+                                  ? "muted"
+                                  : p.status === 0n
+                                    ? undefined
+                                    : "success"
+                              }
+                            />
+                            <div className="card-meta">
+                              <span
+                                className={
+                                  showDeadline
+                                    ? `deadline${left.urgent ? " urgent" : ""}`
+                                    : "stage"
+                                }
+                              >
+                                {showDeadline ? left.text : stageText(p)}
+                              </span>
+                              <span className="card-goal">
+                                of {eth(p.target)} ETH
+                              </span>
+                            </div>
+                            <div className="card-foot">
+                              <span
+                                className={
+                                  p.contribution > 0n ? "chip" : "muted-chip"
+                                }
+                              >
+                                {p.contribution > 0n
+                                  ? `You backed ${eth(p.contribution)} ETH`
+                                  : "40% / 60% milestones"}
+                              </span>
+                              <span className="card-cta">View project ↗</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {count > BigInt(PAGE_SIZE) && (
+                    <div className="pagination">
+                      <button
+                        className="ghost"
+                        disabled={page === 0 || loading}
+                        onClick={() => setPage((p) => p - 1)}
+                      >
+                        ← Newer
+                      </button>
+                      <span>
+                        Page {page + 1} of{" "}
+                        {Math.max(1, Math.ceil(Number(count) / PAGE_SIZE))}
+                      </span>
+                      <button
+                        className="ghost"
+                        disabled={
+                          BigInt((page + 1) * PAGE_SIZE) >= count || loading
+                        }
+                        onClick={() => setPage((p) => p + 1)}
+                      >
+                        Older →
+                      </button>
+                    </div>
+                  )}
+
+                  {!loadError && <ContractCard count={count} />}
+                </div>
+
+                <aside className="detail-column" ref={detailRef}>
+                  {detail ? (
+                    <ProjectDetails
+                      key={`${detail.id}-${account}`}
+                      data={detail}
+                      account={account}
+                      ready={ready}
+                      busy={busy}
+                      now={now}
+                      transact={transact}
+                      onClose={() => setSelected(null)}
+                    />
+                  ) : (
+                    <DetailPlaceholder
+                      onPick={() =>
+                        document
+                          .getElementById("projects")
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" })
                       }
-                      onClick={() => setPage((p) => p + 1)}
-                    >
-                      Older →
-                    </button>
-                  </div>
-                )}
-                {detail && (
-                  <ProjectDetails
-                    key={`${detail.id}-${account}`}
-                    data={detail}
-                    account={account}
-                    ready={ready}
-                    busy={busy}
-                    now={now}
-                    transact={transact}
-                  />
-                )}
-              </>
+                    />
+                  )}
+                </aside>
+              </div>
             )}
           </section>
         )}
+
         {history.length > 0 && (
           <section className="panel history">
             <h3>Your confirmed transactions · this session</h3>
@@ -996,8 +1347,11 @@ export default function App() {
           </section>
         )}
       </main>
+
       <footer>
-        <span>MilestoneFund</span>
+        <span className="brand">
+          <span className="brand-mark">M</span> MilestoneFund
+        </span>
         <p>COMP7610 · A course prototype on Sepolia</p>
         {CONFIGURED ? (
           <a
@@ -1011,6 +1365,53 @@ export default function App() {
           <span>Contract not configured</span>
         )}
       </footer>
-    </>
+
+      {tx && (
+        <aside
+          className={`toast toast-${tx.status}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="toast-icon">
+            {tx.status === "success" ? (
+              "✓"
+            ) : tx.status === "error" ? (
+              "!"
+            ) : (
+              <span className="spinner" />
+            )}
+          </span>
+          <div className="toast-body">
+            <strong>
+              {tx.label} ·{" "}
+              {tx.status === "wallet"
+                ? "waiting for wallet confirmation"
+                : tx.status === "pending"
+                  ? "transaction processing"
+                  : tx.status === "success"
+                    ? "confirmed"
+                    : "failed"}
+            </strong>
+            {tx.message && <p>{tx.message}</p>}
+            {tx.hash && (
+              <a
+                href={`${EXPLORER}/tx/${tx.hash}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View on Etherscan ↗
+              </a>
+            )}
+          </div>
+          <button
+            className="toast-close"
+            aria-label="Dismiss notification"
+            onClick={() => setTx(null)}
+          >
+            ×
+          </button>
+        </aside>
+      )}
+    </div>
   );
 }
