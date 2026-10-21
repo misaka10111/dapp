@@ -44,6 +44,31 @@ function Badge({ status, expired }) {
   );
 }
 
+// Cards need a reason to act now, so show time left instead of a raw timestamp.
+function countdown(deadlineSec, now) {
+  const left = Number(deadlineSec) - now;
+  if (left <= 0) return { text: "Deadline passed", urgent: false, over: true };
+  const days = Math.floor(left / 86400);
+  const hours = Math.floor((left % 86400) / 3600);
+  const minutes = Math.floor((left % 3600) / 60);
+  const text =
+    days > 0
+      ? `${days}d ${hours}h left`
+      : hours > 0
+        ? `${hours}h ${minutes}m left`
+        : `${minutes}m left`;
+  return { text, urgent: left < 86400, over: false };
+}
+
+// Stage position is already on chain, so the card can show progress for free.
+function stageText(project) {
+  const stage = Number(project.currentMilestone);
+  if (Number(project.status) === 1) return `Milestone ${stage + 1} of 2`;
+  if (Number(project.status) === 3) return "Both milestones released";
+  if (Number(project.status) === 2) return "Funding failed · refunds open";
+  return `Target ${eth(project.target)} ETH`;
+}
+
 function Progress({ value, label, tone }) {
   return (
     <div
@@ -74,6 +99,81 @@ function Skeleton() {
         <div className="skeleton-card" key={i} />
       ))}
     </div>
+  );
+}
+
+// The right rail is never blank, so the layout does not jump on first click.
+function DetailPlaceholder({ onPick }) {
+  return (
+    <section className="detail-panel detail-placeholder" aria-label="Project details">
+      <p className="eyebrow">Project detail</p>
+      <h2>Pick a project to see its milestones</h2>
+      <p className="muted">
+        Each project holds two stages. Evidence is submitted first, then backers
+        approve with the weight they contributed, and only then can the creator
+        withdraw.
+      </p>
+      <ul className="placeholder-list">
+        <li>
+          <strong>40%</strong> released after milestone 1 is approved
+        </li>
+        <li>
+          <strong>60%</strong> released after milestone 2 is approved
+        </li>
+        <li>
+          <strong>&gt; 50%</strong> of contributed weight is required, exactly 50%
+          does not pass
+        </li>
+      </ul>
+      <button className="ghost" onClick={onPick}>
+        Browse projects <span>↓</span>
+      </button>
+    </section>
+  );
+}
+
+// Which contract am I looking at? Cheap to answer, and it fills the gap under
+// the list when the detail rail is taller than the cards.
+function ContractCard({ count }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(CONTRACT_ADDRESS);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  }
+  if (!CONFIGURED) return null;
+  return (
+    <section className="panel contract-card" aria-label="Contract information">
+      <div className="contract-head">
+        <p className="eyebrow">Contract</p>
+        <span className="network">
+          <i />
+          Sepolia
+        </span>
+      </div>
+      <code className="contract-address">{CONTRACT_ADDRESS}</code>
+      <div className="contract-foot">
+        <span>
+          {count.toString()} project{count === 1n ? "" : "s"} on chain
+        </span>
+        <span className="contract-actions">
+          <button className="ghost tiny" onClick={copy}>
+            {copied ? "Copied ✓" : "Copy"}
+          </button>
+          <a
+            href={`${EXPLORER}/address/${CONTRACT_ADDRESS}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Etherscan ↗
+          </a>
+        </span>
+      </div>
+    </section>
   );
 }
 
@@ -439,20 +539,20 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
 
             <div className="stage-meta">
               <span>
-                {projected ? "Projected budget" : "Stage budget"}:{" "}
+                {projected ? "Projected" : "Stage budget"}:{" "}
                 <b>
                   {projected && p.totalRaised === 0n
                     ? "—"
                     : `${eth(budget(p.totalRaised, index))} ETH`}
                 </b>
+                {projected && p.totalRaised > 0n && (
+                  <> of {eth(p.totalRaised)} ETH raised</>
+                )}
               </span>
               {m.withdrawn && (
                 <span>
                   Released: <b>{eth(m.withdrawnAmount)} ETH</b>
                 </span>
-              )}
-              {projected && p.totalRaised > 0n && (
-                <span>based on {eth(p.totalRaised)} ETH raised so far</span>
               )}
             </div>
 
@@ -486,9 +586,8 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
               label={`Milestone ${index + 1} approval`}
               tone={m.approved ? "success" : undefined}
             />
-            <p className="form-note">
-              Strictly more than 50% of contributed weight is required. Exactly
-              50% does not pass.
+            <p className="form-note tight">
+              Needs more than 50% of contributed weight. Exactly 50% fails.
             </p>
 
             <div className="milestone-actions">
@@ -753,10 +852,12 @@ export default function App() {
     };
   }, []);
 
-  // Bring the detail panel into view once a project is opened.
+  // On stacked layouts the detail sits below the grid, so bring it into view.
+  // On wide screens it is a sticky rail and must not steal the scroll position.
   useEffect(() => {
-    if (detail && detailRef.current)
-      detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!detail || !detailRef.current) return;
+    if (!window.matchMedia("(max-width: 1080px)").matches) return;
+    detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [detail?.id]);
 
   // Clear finished transaction banners automatically; errors linger a bit longer.
@@ -1067,107 +1168,143 @@ export default function App() {
                 )}
               </div>
             ) : (
-              <>
-                {loading && !projects.length ? (
-                  <Skeleton />
-                ) : projects.length === 0 ? (
-                  <div className="empty-state">
-                    <h3>
-                      {CONFIGURED
-                        ? "No projects yet."
-                        : "Contract not configured."}
-                    </h3>
-                    <p>
-                      {CONFIGURED
-                        ? "Nothing has been created on this contract yet. Start the first campaign."
-                        : "Connect a deployed contract to explore real projects and their progress."}
-                    </p>
-                    <button className="primary" onClick={() => setTab("create")}>
-                      Create a project <span>↗</span>
-                    </button>
-                  </div>
-                ) : visible.length === 0 ? (
-                  <div className="empty-state">
-                    <h3>Nothing matches this filter</h3>
-                    <p>
-                      Filters apply to the {projects.length} projects loaded on
-                      this page. Try another page or switch back to all projects.
-                    </p>
-                    <button onClick={() => setFilter("all")}>Show all</button>
-                  </div>
-                ) : (
-                  <div className="project-grid">
-                    {visible.map((p) => (
+              <div className={`workspace${detail ? " with-detail" : ""}`}>
+                <div className="list-column">
+                  {loading && !projects.length ? (
+                    <Skeleton />
+                  ) : projects.length === 0 ? (
+                    <div className="empty-state">
+                      <h3>
+                        {CONFIGURED
+                          ? "No projects yet."
+                          : "Contract not configured."}
+                      </h3>
+                      <p>
+                        {CONFIGURED
+                          ? "Nothing has been created on this contract yet. Start the first campaign."
+                          : "Connect a deployed contract to explore real projects and their progress."}
+                      </p>
                       <button
-                        className={`project-card ${selected === p.id ? "selected" : ""}`}
-                        key={p.id.toString()}
-                        onClick={() => setSelected(p.id)}
-                        aria-pressed={selected === p.id}
+                        className="primary"
+                        onClick={() => setTab("create")}
                       >
-                        <div className="card-top">
-                          <span className="project-id">
-                            PROJECT #{p.id.toString().padStart(3, "0")}
-                          </span>
-                          <Badge
-                            status={Number(p.status)}
-                            expired={p.status === 0n && now >= Number(p.deadline)}
-                          />
-                        </div>
-                        <h3>{p.name}</h3>
-                        <p className="card-description">{p.description}</p>
-                        <div className="card-amount">
-                          <Eth value={p.totalRaised} />
-                          <span className="pct">
-                            {percent(p.totalRaised, p.target)}%
-                          </span>
-                        </div>
-                        <Progress
-                          value={percent(p.totalRaised, p.target)}
-                          label={`${p.name} funding`}
-                          tone={
-                            p.status === 2n
-                              ? "muted"
-                              : p.status === 0n
-                                ? undefined
-                                : "success"
-                          }
-                        />
-                        <div className="card-bottom">
-                          <span>of {eth(p.target)} ETH goal</span>
-                          <span>View project ↗</span>
-                        </div>
+                        Create a project <span>↗</span>
                       </button>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ) : visible.length === 0 ? (
+                    <div className="empty-state">
+                      <h3>Nothing matches this filter</h3>
+                      <p>
+                        Filters apply to the {projects.length} projects loaded on
+                        this page. Try another page or switch back to all
+                        projects.
+                      </p>
+                      <button onClick={() => setFilter("all")}>Show all</button>
+                    </div>
+                  ) : (
+                    <div className="project-grid">
+                      {visible.map((p) => {
+                        const left = countdown(p.deadline, now);
+                        const showDeadline = p.status === 0n && !left.over;
+                        return (
+                          <button
+                            className={`project-card ${selected === p.id ? "selected" : ""}`}
+                            key={p.id.toString()}
+                            onClick={() => setSelected(p.id)}
+                            aria-pressed={selected === p.id}
+                          >
+                            <div className="card-top">
+                              <span className="project-id">
+                                PROJECT #{p.id.toString().padStart(3, "0")}
+                              </span>
+                              <Badge
+                                status={Number(p.status)}
+                                expired={
+                                  p.status === 0n && now >= Number(p.deadline)
+                                }
+                              />
+                            </div>
+                            <h3>{p.name}</h3>
+                            <p className="card-description">{p.description}</p>
+                            <div className="card-amount">
+                              <Eth value={p.totalRaised} />
+                              <span className="pct">
+                                {percent(p.totalRaised, p.target)}%
+                              </span>
+                            </div>
+                            <Progress
+                              value={percent(p.totalRaised, p.target)}
+                              label={`${p.name} funding`}
+                              tone={
+                                p.status === 2n
+                                  ? "muted"
+                                  : p.status === 0n
+                                    ? undefined
+                                    : "success"
+                              }
+                            />
+                            <div className="card-meta">
+                              <span
+                                className={
+                                  showDeadline
+                                    ? `deadline${left.urgent ? " urgent" : ""}`
+                                    : "stage"
+                                }
+                              >
+                                {showDeadline ? left.text : stageText(p)}
+                              </span>
+                              <span className="card-goal">
+                                of {eth(p.target)} ETH
+                              </span>
+                            </div>
+                            <div className="card-foot">
+                              <span
+                                className={
+                                  p.contribution > 0n ? "chip" : "muted-chip"
+                                }
+                              >
+                                {p.contribution > 0n
+                                  ? `You backed ${eth(p.contribution)} ETH`
+                                  : "40% / 60% milestones"}
+                              </span>
+                              <span className="card-cta">View project ↗</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                {count > BigInt(PAGE_SIZE) && (
-                  <div className="pagination">
-                    <button
-                      className="ghost"
-                      disabled={page === 0 || loading}
-                      onClick={() => setPage((p) => p - 1)}
-                    >
-                      ← Newer
-                    </button>
-                    <span>
-                      Page {page + 1} of{" "}
-                      {Math.max(1, Math.ceil(Number(count) / PAGE_SIZE))}
-                    </span>
-                    <button
-                      className="ghost"
-                      disabled={
-                        BigInt((page + 1) * PAGE_SIZE) >= count || loading
-                      }
-                      onClick={() => setPage((p) => p + 1)}
-                    >
-                      Older →
-                    </button>
-                  </div>
-                )}
+                  {count > BigInt(PAGE_SIZE) && (
+                    <div className="pagination">
+                      <button
+                        className="ghost"
+                        disabled={page === 0 || loading}
+                        onClick={() => setPage((p) => p - 1)}
+                      >
+                        ← Newer
+                      </button>
+                      <span>
+                        Page {page + 1} of{" "}
+                        {Math.max(1, Math.ceil(Number(count) / PAGE_SIZE))}
+                      </span>
+                      <button
+                        className="ghost"
+                        disabled={
+                          BigInt((page + 1) * PAGE_SIZE) >= count || loading
+                        }
+                        onClick={() => setPage((p) => p + 1)}
+                      >
+                        Older →
+                      </button>
+                    </div>
+                  )}
 
-                {detail && (
-                  <div ref={detailRef}>
+                  {!loadError && <ContractCard count={count} />}
+                </div>
+
+                <aside className="detail-column" ref={detailRef}>
+                  {detail ? (
                     <ProjectDetails
                       key={`${detail.id}-${account}`}
                       data={detail}
@@ -1178,9 +1315,17 @@ export default function App() {
                       transact={transact}
                       onClose={() => setSelected(null)}
                     />
-                  </div>
-                )}
-              </>
+                  ) : (
+                    <DetailPlaceholder
+                      onPick={() =>
+                        document
+                          .getElementById("projects")
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                      }
+                    />
+                  )}
+                </aside>
+              </div>
             )}
           </section>
         )}
