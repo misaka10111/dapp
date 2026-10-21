@@ -10,14 +10,24 @@ import abi from "./abi/MilestoneFund.json";
 
 export const SEPOLIA_CHAIN_ID = 11155111n;
 export const EXPLORER = "https://sepolia.etherscan.io";
-export const CONTRACT_ADDRESS = (
-  import.meta.env.VITE_CONTRACT_ADDRESS ?? ""
-).trim();
+const RAW_ADDRESS = (import.meta.env.VITE_CONTRACT_ADDRESS ?? "").trim();
+
+// Chat apps and slides often rewrite the letter case of a checksummed address,
+// which makes isAddress() reject an otherwise correct address. The hex digits
+// are unchanged by case, so retry once in lower case before giving up.
+function normalizeAddress(raw) {
+  if (!raw) return "";
+  if (isAddress(raw)) return getAddress(raw);
+  const lower = raw.toLowerCase();
+  return isAddress(lower) ? getAddress(lower) : "";
+}
+
+export const CONTRACT_ADDRESS = normalizeAddress(RAW_ADDRESS);
 export const RPC_URL = (import.meta.env.VITE_SEPOLIA_RPC_URL ?? "").trim();
 export const CONFIGURED =
-  isAddress(CONTRACT_ADDRESS) && CONTRACT_ADDRESS !== ZeroAddress;
+  CONTRACT_ADDRESS !== "" && CONTRACT_ADDRESS !== ZeroAddress;
 export const CONFIG_ERROR =
-  CONTRACT_ADDRESS && !CONFIGURED
+  RAW_ADDRESS && !CONFIGURED
     ? "Invalid contract address. Use the deployed Sepolia address in .env.local."
     : "";
 export const ABI = abi;
