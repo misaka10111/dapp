@@ -1,5 +1,7 @@
 # MilestoneFund 测试报告
 
+> 本文主要记录 2026-10-21 的历史模拟测试。2026-10-22 已完成 [两条手动端到端流程](docs/e2e-test-record.md)、[本地连续状态测试](docs/automated-testing.md) 和 [完整部署字节码核对](docs/deployment-verification.md)。旧脚本中的实时链上状态假设会随时间失效，日常回归请运行 `npm test`。
+
 - **测试对象**：`misaka10111/dapp` 分支 `milestonefunddemo`（commit `HEAD`）
 - **合约**：Sepolia `0x9b824CA674432B390E30A5164a76c04EeAa8f686`
 - **测试日期**：2026-10-21
@@ -14,11 +16,11 @@
 | 合约逻辑（76 项断言） | **全部通过**，包括审批、提款、退款、50% 边界、超额出资、取整尾差 |
 | 前端只读流程（列表 / 详情 / 状态徽章 / 金额） | 正常，读到的链上数据与合约一致 |
 | `npm ci` / `npm run build` | 通过（484 kB JS，gzip 165 kB） |
-| 合约与 ABI 是否匹配 | 匹配，13 个函数选择器在链上字节码中全部存在 |
+| 合约接口初检 | 13 个 ABI 函数选择器在链上字节码中存在；该检查本身不能证明源码和部署完全一致。后续完整核验见部署核对记录。 |
 | **阻塞级问题** | **1 个：群里的合约地址校验和不正确，直接粘贴会让页面完全不可用**（已修复，见第二节） |
 | 交接文件缺失 | `.env.example`、`.gitignore`、`vite.config.js` 都不在仓库里，README 的步骤跑不通（已补齐） |
 
-一句话：**合约本身是好的，前后端对接也没问题；卡住组员的是"地址 + 三个缺失的配置文件"，不是业务逻辑。**
+当时的 76 项模拟断言及前端只读检查通过，发现的地址和配置问题已处理；模拟结果不能替代连续交易验收、钱包交互测试或完整部署核对。
 
 ---
 
@@ -54,7 +56,7 @@ CONFIGURED = isAddress(CONTRACT_ADDRESS) && ...  →  false
 | --- | --- | --- | --- |
 | P0 | 仓库里没有 `.env.example` | README 第 4 节 `cp .env.example .env.local` 直接失败，组员不知道要填哪几个变量 | **已补** |
 | P0 | 仓库里没有 `.gitignore` | 组员很容易把 `node_modules/`、`dist/`、`.env.local` 提交上去；`.env.local` 一旦进仓库，别人 clone 后会用错地址 | **已补** |
-| P1 | 链上字节码与 README 的编译参数不一致 | README 要求"Optimization 开、runs 200、EVM paris"，实际部署的是**未开优化 + shanghai**（字节码里有 `PUSH0`）：README 参数编出 9,143 字节，链上 15,611 字节，未开优化 + shanghai 编出 15,617 字节（差 6 字节，应是 solc 小版本不同）。**功能无影响**（13 个函数选择器全部匹配，ABI 可直接用），但"照 README 重新部署"得到的不是同一份字节码 | 建议 README 改成实际参数（Remix 默认：不开优化、shanghai），或按 README 重新部署一次 |
+| P1 | 链上字节码与 README 默认编译参数不一致 | 2026-10-22 已纠正早期根据 PUSH0 推断 Shanghai 的结论：完整匹配配置为 solc 0.8.34、优化关闭、Osaka、源码单元 MilestoneFund.sol、LF 换行。完整 runtime 为 15,664 字节，包含 metadata；默认 0.8.24 优化开启/Paris 构建不能复现该实例。选择器存在也不能单独证明“功能无影响”。 | 已补只读核验脚本、Standard JSON 输入与完整匹配证据；详见部署核对记录，无需重部署现有实例。 |
 | P2 | 缺 `vite.config.js` | `@vitejs/plugin-react` 装了但从未启用：没有 HMR，改代码要手动刷新；且 JSX 走经典运行时，新组件忘了 `import React` 会报错 | **已补** |
 | P2 | 不配 `VITE_SEPOLIA_RPC_URL` 时，**只读浏览也依赖 MetaMask** | `readProvider()` 在 RPC 为空时回落到 `BrowserProvider`，没装钱包/没切 Sepolia 的组员连项目列表都看不到，报错信息也不直观 | 建议 README 里把 RPC 那行标成"强烈建议填"，或内置一个公共 RPC 兜底 |
 | P3 | Funding 阶段就显示 `Budget after successful funding: 0.0002 ETH` | 这个数字是按**当前已筹**算的，还会随新出资变化，容易被当成最终预算 | 已修复：改为 Projected budget，并注明 "based on X ETH raised so far"，无出资时显示 `—` |

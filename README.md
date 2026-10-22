@@ -4,6 +4,8 @@ COMP7610 课程项目：支持者为项目出资，项目方按两个里程碑�
 
 **测试方式：组员用 Remix 部署合约，大家在各自电脑启动网页，通过 MetaMask 手动操作。** 只需一位组员部署到 Sepolia，再把合约地址发给其他人。
 
+2026-10-22 已补齐可复跑的本地连续状态测试及现有部署核验。手动成功/退款流程的 15 笔交易与截图见 [端到端测试记录](docs/e2e-test-record.md)；本地测试见 [自动化测试说明](docs/automated-testing.md)；现有合约的完整字节码复现见 [部署核对记录](docs/deployment-verification.md)。
+
 ## 1. 项目文件
 
 | 文件 | 用途 |
@@ -21,6 +23,8 @@ COMP7610 课程项目：支持者为项目出资，项目方按两个里程碑�
 | `.env.example` | 合约地址配置模板。 |
 | `.gitignore` | Git 忽略规则。 |
 | `scripts/compile-contract.mjs` | 修改合约后，可用它重新编译并更新 ABI；手动测试无需操作。 |
+| `tests/milestone-fund.test.mjs` | 本地连续状态测试，覆盖两阶段放款、退款及边界，不连接钱包。 |
+| `scripts/verify-deployment.mjs` | 只读核对 Sepolia 运行字节码与编译结果，保存可复现证据。 |
 | `README.md` | 本说明文件。 |
 
 ## 2. 安装依赖并启动网页
@@ -65,6 +69,8 @@ npm run dev  # 安装完成后，启动网页
 如果组员已有本地仓库，先保存自己的修改，再获取对应分支，不要用 reset 覆盖自己的工作，也不要在 main 上修改。
 
 ## 3. 组员使用 Remix 部署合约
+
+下面的 **0.8.24 / 优化开启 / Paris** 步骤用于按仓库默认配置新部署。现有测试合约 `0x9b824CA674432B390E30A5164a76c04EeAa8f686` 实际使用 **0.8.34 / 优化关闭 / Osaka**；已找到包括 metadata 在内的完整运行字节码匹配。复现现有实例应使用 [部署核对记录](docs/deployment-verification.md) 中保存的 Standard JSON 输入，无需为本轮测试重新部署。
 
 1. 在安装 MetaMask 的浏览器中打开 [Remix](https://remix.ethereum.org)。
 2. 新建 `MilestoneFund.sol`，复制仓库中 `contracts/MilestoneFund.sol` 的全部内容。
@@ -187,9 +193,17 @@ npm run dev
 ## 7. 其他命令和常见问题
 
 ```bash
+npm test                  # 本地连续状态测试：5 类场景 × 2 套编译配置，共 10 项
+npm run verify:deployment # 只读核对现有 Sepolia 合约，成功时输出 full-match
 npm run build             # 检查正式构建，生成 dist
 npm run compile:contract  # 修改 Solidity 后重新生成 ABI
 ```
+
+新增测试依赖后先运行一次 `npm ci`。`npm test` 在进程内的虚拟环境执行签名交易，初始化资金、部署合约并连续操作，无需 MetaMask、RPC 或测试 ETH；每次从干净状态开始。两套编译配置都在 Osaka VM 中运行，分别覆盖仓库默认构建和现有部署的复现构建。
+
+`verify:deployment` 需要联网读取 Sepolia，但不签名或发送交易，也不修改前端 ABI。它将证据写入 `docs/evidence/deployment/`，默认使用新文件名；仅完整运行字节码匹配才返回退出码 0。详细命令及结果解释见上面的两个记录文件。
+
+`simulate-tests.mjs` 和 `TEST-REPORT.md` 保留为 2026-10-21 的历史模拟验收；旧脚本依赖当时的链上项目数量和状态，不能作为稳定的持续测试入口。日常回归使用 `npm test`。
 
 修改 Solidity 后，要重新编译并更新 ABI、在 Remix 重新部署、替换前端地址。当前源码未修改时，无需重新生成 ABI。
 

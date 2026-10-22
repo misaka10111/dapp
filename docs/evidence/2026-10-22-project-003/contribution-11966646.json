@@ -1,0 +1,215 @@
+{
+  "network": "Sepolia",
+  "chainId": 11155111,
+  "contract": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+  "sourceCommit": "75e9190d277b573131d5018836af575cb8011fbc",
+  "observedAt": "2026-10-22T02:45:58.787Z",
+  "operation": "B contributes 0.00003 ETH to project 3 (15% of 0.0002 ETH target)",
+  "transaction": {
+    "_type": "TransactionResponse",
+    "accessList": [],
+    "blockNumber": 11966646,
+    "blockHash": "0xe2703aaa42a679df6beb114df965ea0dfbea2e8671851548dfe203a880be2a5a",
+    "blobVersionedHashes": null,
+    "chainId": "11155111",
+    "data": "0xc1cbbca70000000000000000000000000000000000000000000000000000000000000003",
+    "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+    "gasLimit": "369774",
+    "gasPrice": "1500000016",
+    "hash": "0x0aab5ef7f63041f863e6b942ce80f286eda016d46fba5a1dc42721c853718fb4",
+    "maxFeePerGas": "1500000022",
+    "maxPriorityFeePerGas": "1500000000",
+    "maxFeePerBlobGas": null,
+    "nonce": 5,
+    "signature": {
+      "_type": "signature",
+      "networkV": null,
+      "r": "0x192e2a6152b2ddc70ec90e22018abea3c67de7d58675dd5df8096270fb4e9a48",
+      "s": "0x384562f62fd8c9d3e85ca9bd236a0ef3799f0d28778178bfd7a77569f5faaf42",
+      "v": 28
+    },
+    "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+    "index": 17,
+    "type": 2,
+    "value": "30000000000000"
+  },
+  "receipt": {
+    "_type": "TransactionReceipt",
+    "blockHash": "0xe2703aaa42a679df6beb114df965ea0dfbea2e8671851548dfe203a880be2a5a",
+    "blockNumber": 11966646,
+    "contractAddress": null,
+    "cumulativeGasUsed": "3524449",
+    "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+    "gasPrice": "1500000016",
+    "blobGasUsed": null,
+    "blobGasPrice": null,
+    "gasUsed": "365704",
+    "hash": "0x0aab5ef7f63041f863e6b942ce80f286eda016d46fba5a1dc42721c853718fb4",
+    "index": 17,
+    "logs": [
+      {
+        "_type": "log",
+        "address": "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE",
+        "blockHash": "0xe2703aaa42a679df6beb114df965ea0dfbea2e8671851548dfe203a880be2a5a",
+        "blockNumber": 11966646,
+        "data": "0x00000000000000000000000000000000000000000000000000001b48eb57e000",
+        "index": 43,
+        "topics": [
+          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+          "0x00000000000000000000000026791c26fba3612eb49fa763fa47cfecd66b6a1e",
+          "0x0000000000000000000000009b824ca674432b390e30a5164a76c04eeaa8f686"
+        ],
+        "transactionHash": "0x0aab5ef7f63041f863e6b942ce80f286eda016d46fba5a1dc42721c853718fb4",
+        "transactionIndex": 17
+      },
+      {
+        "_type": "log",
+        "address": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "blockHash": "0xe2703aaa42a679df6beb114df965ea0dfbea2e8671851548dfe203a880be2a5a",
+        "blockNumber": 11966646,
+        "data": "0x00000000000000000000000000000000000000000000000000001b48eb57e000",
+        "index": 44,
+        "topics": [
+          "0x865c884d49c8cecaef108efb20f7d282f26c0f9b0d24dd48e5592d4e02ec658d",
+          "0x0000000000000000000000000000000000000000000000000000000000000003",
+          "0x00000000000000000000000026791c26fba3612eb49fa763fa47cfecd66b6a1e"
+        ],
+        "transactionHash": "0x0aab5ef7f63041f863e6b942ce80f286eda016d46fba5a1dc42721c853718fb4",
+        "transactionIndex": 17
+      }
+    ],
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000800000000000000000000000002000000000000000000020000000000000000000000000000000000000000000008000000000000000000000000000000000000000010000000000010002000000000000000000000004820000000000010000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000080000000800000000000000000400008000002100000000008000000000000000000000000000000000000008000400000000000000000000000000000000000000000000000000000000000000000",
+    "status": 1,
+    "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686"
+  },
+  "decoded": {
+    "name": "contribute",
+    "args": [
+      "3"
+    ],
+    "wrapper": null
+  },
+  "events": [
+    {
+      "name": "ContributionReceived",
+      "args": {
+        "projectId": "3",
+        "backer": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+        "amount": "30000000000000"
+      }
+    }
+  ],
+  "snapshot": {
+    "blockNumber": 11966646,
+    "blockHash": "0xe2703aaa42a679df6beb114df965ea0dfbea2e8671851548dfe203a880be2a5a",
+    "blockTimestamp": 1792637028,
+    "blockTimeUTC": "2026-10-22T02:43:48.000Z",
+    "project": {
+      "creator": "0x406799E512b14CbDfCCB7EF2Acea9e6bCFB218C4",
+      "name": "HQC-E2E-Refund-1022",
+      "description": "Verify refunds when funding expires below the target.",
+      "target": "200000000000000",
+      "deadline": "1792638000",
+      "totalRaised": "30000000000000",
+      "escrowBalance": "30000000000000",
+      "status": "0",
+      "currentMilestone": "0"
+    },
+    "milestones": [
+      {
+        "goal": "Deliver the prototype.",
+        "evidence": "",
+        "evidenceUrl": "",
+        "approvalWeight": "0",
+        "withdrawnAmount": "0",
+        "submitted": false,
+        "approved": false,
+        "withdrawn": false
+      },
+      {
+        "goal": "Deliver the final demo.",
+        "evidence": "",
+        "evidenceUrl": "",
+        "approvalWeight": "0",
+        "withdrawnAmount": "0",
+        "submitted": false,
+        "approved": false,
+        "withdrawn": false
+      }
+    ],
+    "backer": {
+      "address": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+      "contribution": "30000000000000",
+      "refunded": false
+    }
+  },
+  "readOnlyChecks": [
+    {
+      "name": "finalizeFunding",
+      "expectedReason": "Deadline not reached",
+      "label": "B finalizes before deadline",
+      "method": "eth_call",
+      "blockTag": 11966646,
+      "request": {
+        "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+        "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "data": "0xfb0f05b70000000000000000000000000000000000000000000000000000000000000003"
+      },
+      "result": {
+        "reverted": true,
+        "code": "CALL_EXCEPTION",
+        "reason": "Deadline not reached",
+        "revertData": "0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000014446561646c696e65206e6f742072656163686564000000000000000000000000",
+        "message": "execution reverted: \"Deadline not reached\""
+      }
+    },
+    {
+      "name": "claimRefund",
+      "expectedReason": "Project not failed",
+      "label": "B claims refund before finalization",
+      "method": "eth_call",
+      "blockTag": 11966646,
+      "request": {
+        "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+        "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "data": "0x5b7baf640000000000000000000000000000000000000000000000000000000000000003"
+      },
+      "result": {
+        "reverted": true,
+        "code": "CALL_EXCEPTION",
+        "reason": "Project not failed",
+        "revertData": "0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001250726f6a656374206e6f74206661696c65640000000000000000000000000000",
+        "message": "execution reverted: \"Project not failed\""
+      }
+    }
+  ],
+  "latestObservation": {
+    "blockNumber": 11966656,
+    "blockHash": "0x65ababefb984ee4656d82051dc36d6493348e9afb30892c2275fe8f8406940d2",
+    "blockTimeUTC": "2026-10-22T02:45:48.000Z",
+    "project": {
+      "creator": "0x406799E512b14CbDfCCB7EF2Acea9e6bCFB218C4",
+      "name": "HQC-E2E-Refund-1022",
+      "description": "Verify refunds when funding expires below the target.",
+      "target": "200000000000000",
+      "deadline": "1792638000",
+      "totalRaised": "30000000000000",
+      "escrowBalance": "30000000000000",
+      "status": "0",
+      "currentMilestone": "0"
+    },
+    "deadlineReached": false,
+    "secondsUntilDeadline": 852,
+    "completedProject2": {
+      "creator": "0x406799E512b14CbDfCCB7EF2Acea9e6bCFB218C4",
+      "name": "HQC-E2E-Success-1022",
+      "description": "End-to-end test of contribution-weighted approvals and milestone payouts.",
+      "target": "100000000000000",
+      "deadline": "1792749600",
+      "totalRaised": "100000000000000",
+      "escrowBalance": "0",
+      "status": "3",
+      "currentMilestone": "2"
+    }
+  }
+}

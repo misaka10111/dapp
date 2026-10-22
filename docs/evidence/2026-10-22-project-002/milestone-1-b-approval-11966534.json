@@ -1,0 +1,170 @@
+{
+  "network": "Sepolia",
+  "chainId": 11155111,
+  "contract": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+  "sourceCommit": "75e9190d277b573131d5018836af575cb8011fbc",
+  "observedAt": "2026-10-22T02:22:18.961Z",
+  "operation": "B approves project 2 milestone 0 at exactly 50% contribution weight",
+  "transaction": {
+    "_type": "TransactionResponse",
+    "accessList": [],
+    "blockNumber": 11966534,
+    "blockHash": "0xb5f6ad90e8902fdb72b7bb681f8897cca689bb12ad66ddeb09dd1b36dd0146f7",
+    "blobVersionedHashes": null,
+    "chainId": "11155111",
+    "data": "0xb7c5923300000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000",
+    "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+    "gasLimit": "254569",
+    "gasPrice": "1500000017",
+    "hash": "0x2891bf404058a864dc474237fb5f99a94e02ce75df972e32ff4b42b11646f4f3",
+    "maxFeePerGas": "1500000023",
+    "maxPriorityFeePerGas": "1500000000",
+    "maxFeePerBlobGas": null,
+    "nonce": 1,
+    "signature": {
+      "_type": "signature",
+      "networkV": null,
+      "r": "0xe527598cfc16d1cf3f4445c7882e6ecae148ac805e8589ae79e8859a3eb4fea5",
+      "s": "0x7444f57384cfa1b5f0df670611f8769d3a23b1060d762ec2c111a2290b31c097",
+      "v": 28
+    },
+    "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+    "index": 84,
+    "type": 2,
+    "value": "0"
+  },
+  "receipt": {
+    "_type": "TransactionReceipt",
+    "blockHash": "0xb5f6ad90e8902fdb72b7bb681f8897cca689bb12ad66ddeb09dd1b36dd0146f7",
+    "blockNumber": 11966534,
+    "contractAddress": null,
+    "cumulativeGasUsed": "84746054",
+    "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+    "gasPrice": "1500000017",
+    "blobGasUsed": null,
+    "blobGasPrice": null,
+    "gasUsed": "251406",
+    "hash": "0x2891bf404058a864dc474237fb5f99a94e02ce75df972e32ff4b42b11646f4f3",
+    "index": 84,
+    "logs": [
+      {
+        "_type": "log",
+        "address": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "blockHash": "0xb5f6ad90e8902fdb72b7bb681f8897cca689bb12ad66ddeb09dd1b36dd0146f7",
+        "blockNumber": 11966534,
+        "data": "0x00000000000000000000000000000000000000000000000000002d79883d2000",
+        "index": 181,
+        "topics": [
+          "0x094d71d4c000f8dd4cca693b241ce997610658e9df2713658824c0856472570d",
+          "0x0000000000000000000000000000000000000000000000000000000000000002",
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "0x00000000000000000000000026791c26fba3612eb49fa763fa47cfecd66b6a1e"
+        ],
+        "transactionHash": "0x2891bf404058a864dc474237fb5f99a94e02ce75df972e32ff4b42b11646f4f3",
+        "transactionIndex": 84
+      }
+    ],
+    "logsBloom": "0x04000000000000000000000000000000000000000000000000000000000800000000000000000000000002000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000010000000020010000000000000000800000000004000000000000000000000000000000000000000000000008000000000000000000000000080000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000008000000000000000000002",
+    "status": 1,
+    "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686"
+  },
+  "decoded": {
+    "name": "approveMilestone",
+    "args": [
+      "2",
+      "0"
+    ]
+  },
+  "events": [
+    {
+      "name": "ApprovalCast",
+      "args": {
+        "projectId": "2",
+        "milestone": "0",
+        "backer": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+        "weight": "50000000000000"
+      }
+    }
+  ],
+  "snapshot": {
+    "blockNumber": 11966534,
+    "blockHash": "0xb5f6ad90e8902fdb72b7bb681f8897cca689bb12ad66ddeb09dd1b36dd0146f7",
+    "blockTimestamp": 1792635660,
+    "blockTimeUTC": "2026-10-22T02:21:00.000Z",
+    "project": {
+      "creator": "0x406799E512b14CbDfCCB7EF2Acea9e6bCFB218C4",
+      "name": "HQC-E2E-Success-1022",
+      "description": "End-to-end test of contribution-weighted approvals and milestone payouts.",
+      "target": "100000000000000",
+      "deadline": "1792749600",
+      "totalRaised": "100000000000000",
+      "escrowBalance": "100000000000000",
+      "status": "1",
+      "currentMilestone": "0"
+    },
+    "milestone": {
+      "goal": "Verify first milestone approval and 40% payout.",
+      "evidence": "E2E test: funding completed with two backers contributing 0.00005 ETH each. Requesting approval to test the first milestone's 40% fund release.",
+      "evidenceUrl": "https://github.com/misaka10111/dapp",
+      "approvalWeight": "50000000000000",
+      "withdrawnAmount": "0",
+      "submitted": true,
+      "approved": false,
+      "withdrawn": false
+    },
+    "backers": {
+      "B": {
+        "address": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+        "contribution": "50000000000000",
+        "hasApproved": true
+      },
+      "C": {
+        "address": "0x3851E2C69AE098447Adc8038dC71817aBaf39bc8",
+        "contribution": "50000000000000",
+        "hasApproved": false
+      }
+    }
+  },
+  "readOnlyChecks": [
+    {
+      "label": "Creator withdrawal at exactly 50%",
+      "from": "0x406799E512b14CbDfCCB7EF2Acea9e6bCFB218C4",
+      "name": "withdrawMilestone",
+      "expectedReason": "Milestone not withdrawable",
+      "method": "eth_call",
+      "blockTag": 11966534,
+      "request": {
+        "from": "0x406799E512b14CbDfCCB7EF2Acea9e6bCFB218C4",
+        "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "data": "0x8e7f5ee500000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "result": {
+        "reverted": true,
+        "code": "CALL_EXCEPTION",
+        "reason": "Milestone not withdrawable",
+        "revertData": "0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001a4d696c6573746f6e65206e6f7420776974686472617761626c65000000000000",
+        "message": "execution reverted: \"Milestone not withdrawable\""
+      }
+    },
+    {
+      "label": "B duplicate approval at exactly 50%",
+      "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+      "name": "approveMilestone",
+      "expectedReason": "Already approved",
+      "method": "eth_call",
+      "blockTag": 11966534,
+      "request": {
+        "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+        "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "data": "0xb7c5923300000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "result": {
+        "reverted": true,
+        "code": "CALL_EXCEPTION",
+        "reason": "Already approved",
+        "revertData": "0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010416c726561647920617070726f76656400000000000000000000000000000000",
+        "message": "execution reverted: \"Already approved\""
+      }
+    }
+  ]
+}
