@@ -9,3 +9,4 @@ build-artifact.json
 chain-code.txt
 test-results.json
 simulation-results.json
+artifacts/
