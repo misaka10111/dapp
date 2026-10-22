@@ -1,0 +1,167 @@
+{
+  "network": "Sepolia",
+  "chainId": 11155111,
+  "contract": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+  "sourceCommit": "75e9190d277b573131d5018836af575cb8011fbc",
+  "observedAt": "2026-10-22T02:24:24.992Z",
+  "operation": "C approves project 2 milestone 0, reaching 100% contribution weight",
+  "transaction": {
+    "_type": "TransactionResponse",
+    "accessList": [],
+    "blockNumber": 11966546,
+    "blockHash": "0x13e0d65e832210c1b993abde23f1b2e10dc28a69b812e7bda8159588d6428fe2",
+    "blobVersionedHashes": null,
+    "chainId": "11155111",
+    "data": "0xb7c5923300000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000",
+    "from": "0x3851E2C69AE098447Adc8038dC71817aBaf39bc8",
+    "gasLimit": "167828",
+    "gasPrice": "1500000015",
+    "hash": "0xc5f2356e29f4e3efa651d1f418d6ab52132d174005d6b7cf9005ce9fe8e72253",
+    "maxFeePerGas": "1500000021",
+    "maxPriorityFeePerGas": "1500000000",
+    "maxFeePerBlobGas": null,
+    "nonce": 1,
+    "signature": {
+      "_type": "signature",
+      "networkV": null,
+      "r": "0x38ac971575cabc18c08c3a2b3ed306b885464506bc02ea33886f2e1656f5a605",
+      "s": "0x6871fe31980d3ea2a889c66e3b68774962aeb229f9cd396440d74779a720bdca",
+      "v": 28
+    },
+    "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+    "index": 0,
+    "type": 2,
+    "value": "0"
+  },
+  "receipt": {
+    "_type": "TransactionReceipt",
+    "blockHash": "0x13e0d65e832210c1b993abde23f1b2e10dc28a69b812e7bda8159588d6428fe2",
+    "blockNumber": 11966546,
+    "contractAddress": null,
+    "cumulativeGasUsed": "165348",
+    "from": "0x3851E2C69AE098447Adc8038dC71817aBaf39bc8",
+    "gasPrice": "1500000015",
+    "blobGasUsed": null,
+    "blobGasPrice": null,
+    "gasUsed": "165348",
+    "hash": "0xc5f2356e29f4e3efa651d1f418d6ab52132d174005d6b7cf9005ce9fe8e72253",
+    "index": 0,
+    "logs": [
+      {
+        "_type": "log",
+        "address": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "blockHash": "0x13e0d65e832210c1b993abde23f1b2e10dc28a69b812e7bda8159588d6428fe2",
+        "blockNumber": 11966546,
+        "data": "0x00000000000000000000000000000000000000000000000000002d79883d2000",
+        "index": 0,
+        "topics": [
+          "0x094d71d4c000f8dd4cca693b241ce997610658e9df2713658824c0856472570d",
+          "0x0000000000000000000000000000000000000000000000000000000000000002",
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "0x0000000000000000000000003851e2c69ae098447adc8038dc71817abaf39bc8"
+        ],
+        "transactionHash": "0xc5f2356e29f4e3efa651d1f418d6ab52132d174005d6b7cf9005ce9fe8e72253",
+        "transactionIndex": 0
+      },
+      {
+        "_type": "log",
+        "address": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "blockHash": "0x13e0d65e832210c1b993abde23f1b2e10dc28a69b812e7bda8159588d6428fe2",
+        "blockNumber": 11966546,
+        "data": "0x",
+        "index": 1,
+        "topics": [
+          "0x5bd776d6cd4ec262a0d9b560dc43fcd23bbf8162933a60acf2b23e2aed2a7e4c",
+          "0x0000000000000000000000000000000000000000000000000000000000000002",
+          "0x0000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "transactionHash": "0xc5f2356e29f4e3efa651d1f418d6ab52132d174005d6b7cf9005ce9fe8e72253",
+        "transactionIndex": 0
+      }
+    ],
+    "logsBloom": "0x44000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000020000000000000000000000000000000000000000000000000000000000000000000010000000020000000000000000000800000000004000000000000000000000000000000000000000000000808000000000000000000000000080000000000000000000000000000000000100000000000000000000000000000000000000000000000800002000000000000000000000000000000000000000000000000020000000000000000100000000000000000000000000008000000000000000000002",
+    "status": 1,
+    "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686"
+  },
+  "decoded": {
+    "name": "approveMilestone",
+    "args": [
+      "2",
+      "0"
+    ]
+  },
+  "events": [
+    {
+      "name": "ApprovalCast",
+      "args": {
+        "projectId": "2",
+        "milestone": "0",
+        "backer": "0x3851E2C69AE098447Adc8038dC71817aBaf39bc8",
+        "weight": "50000000000000"
+      }
+    },
+    {
+      "name": "MilestoneApproved",
+      "args": {
+        "projectId": "2",
+        "milestone": "0"
+      }
+    }
+  ],
+  "previousBlock": {
+    "blockNumber": 11966545,
+    "milestone": {
+      "goal": "Verify first milestone approval and 40% payout.",
+      "evidence": "E2E test: funding completed with two backers contributing 0.00005 ETH each. Requesting approval to test the first milestone's 40% fund release.",
+      "evidenceUrl": "https://github.com/misaka10111/dapp",
+      "approvalWeight": "50000000000000",
+      "withdrawnAmount": "0",
+      "submitted": true,
+      "approved": false,
+      "withdrawn": false
+    }
+  },
+  "snapshot": {
+    "blockNumber": 11966546,
+    "blockHash": "0x13e0d65e832210c1b993abde23f1b2e10dc28a69b812e7bda8159588d6428fe2",
+    "blockTimestamp": 1792635804,
+    "blockTimeUTC": "2026-10-22T02:23:24.000Z",
+    "project": {
+      "creator": "0x406799E512b14CbDfCCB7EF2Acea9e6bCFB218C4",
+      "name": "HQC-E2E-Success-1022",
+      "description": "End-to-end test of contribution-weighted approvals and milestone payouts.",
+      "target": "100000000000000",
+      "deadline": "1792749600",
+      "totalRaised": "100000000000000",
+      "escrowBalance": "100000000000000",
+      "status": "1",
+      "currentMilestone": "0"
+    },
+    "milestones": [
+      {
+        "goal": "Verify first milestone approval and 40% payout.",
+        "evidence": "E2E test: funding completed with two backers contributing 0.00005 ETH each. Requesting approval to test the first milestone's 40% fund release.",
+        "evidenceUrl": "https://github.com/misaka10111/dapp",
+        "approvalWeight": "100000000000000",
+        "withdrawnAmount": "0",
+        "submitted": true,
+        "approved": true,
+        "withdrawn": false
+      },
+      {
+        "goal": "Verify second milestone approval and final payout.",
+        "evidence": "",
+        "evidenceUrl": "",
+        "approvalWeight": "0",
+        "withdrawnAmount": "0",
+        "submitted": false,
+        "approved": false,
+        "withdrawn": false
+      }
+    ],
+    "hasApproved": {
+      "B": true,
+      "C": true
+    }
+  }
+}

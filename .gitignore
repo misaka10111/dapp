@@ -1,5 +1,12 @@
 node_modules/
 dist/
-artifacts/
-.env.local
 .env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+build-artifact.json
+chain-code.txt
+test-results.json
+simulation-results.json
+artifacts/

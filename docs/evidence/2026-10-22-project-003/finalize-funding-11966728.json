@@ -1,0 +1,164 @@
+{
+  "network": "Sepolia",
+  "chainId": 11155111,
+  "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
+  "contract": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+  "sourceCommit": "75e9190d277b573131d5018836af575cb8011fbc",
+  "observedAt": "2026-10-22T03:02:27.383Z",
+  "operation": "B finalizes expired under-target project 3, opening full contribution refunds",
+  "transaction": {
+    "_type": "TransactionResponse",
+    "accessList": [],
+    "blockNumber": 11966728,
+    "blockHash": "0x73a74e96e116828b037afae3ed47f4346898662f022fbc76780e9107810c433f",
+    "blobVersionedHashes": null,
+    "chainId": "11155111",
+    "data": "0xfb0f05b70000000000000000000000000000000000000000000000000000000000000003",
+    "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+    "gasLimit": "132726",
+    "gasPrice": "1500000015",
+    "hash": "0x067497600a670f6660090ee4b23334beb8ca3e5a3d10dbdc2e6332244bb3af83",
+    "maxFeePerGas": "1500000021",
+    "maxPriorityFeePerGas": "1500000000",
+    "maxFeePerBlobGas": null,
+    "nonce": 6,
+    "signature": {
+      "_type": "signature",
+      "networkV": null,
+      "r": "0x930fca5d94704b12575dc8c98733e2809f50e94fdad29dd28a44040a98f0077b",
+      "s": "0x36dc4b84a04f282563193ff405ecf9991bef4be777b2ea098f662f33d3f3eaf9",
+      "v": 28
+    },
+    "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+    "index": 109,
+    "type": 2,
+    "value": "0"
+  },
+  "receipt": {
+    "_type": "TransactionReceipt",
+    "blockHash": "0x73a74e96e116828b037afae3ed47f4346898662f022fbc76780e9107810c433f",
+    "blockNumber": 11966728,
+    "contractAddress": null,
+    "cumulativeGasUsed": "57132581",
+    "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+    "gasPrice": "1500000015",
+    "blobGasUsed": null,
+    "blobGasPrice": null,
+    "gasUsed": "131621",
+    "hash": "0x067497600a670f6660090ee4b23334beb8ca3e5a3d10dbdc2e6332244bb3af83",
+    "index": 109,
+    "logs": [
+      {
+        "_type": "log",
+        "address": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "blockHash": "0x73a74e96e116828b037afae3ed47f4346898662f022fbc76780e9107810c433f",
+        "blockNumber": 11966728,
+        "data": "0x",
+        "index": 222,
+        "topics": [
+          "0xe9981212ab524b2711193a45899a72ea24566f65d0953cd9f50c0d7943401c82",
+          "0x0000000000000000000000000000000000000000000000000000000000000003"
+        ],
+        "transactionHash": "0x067497600a670f6660090ee4b23334beb8ca3e5a3d10dbdc2e6332244bb3af83",
+        "transactionIndex": 109
+      }
+    ],
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000002000000000000000000004000000010000000000000000000000000000000000000008000800000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "status": 1,
+    "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686"
+  },
+  "decoded": {
+    "name": "finalizeFunding",
+    "signature": "finalizeFunding(uint256)",
+    "args": [
+      "3"
+    ]
+  },
+  "transactionStructure": {
+    "topLevelDirectMilestoneFundCall": true,
+    "topLevelFrom": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+    "topLevelTo": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+    "topLevelType": 2,
+    "topLevelValue": "0",
+    "selector": "0xfb0f05b7"
+  },
+  "events": [
+    {
+      "name": "FundingFailed",
+      "args": {
+        "projectId": "3"
+      },
+      "logIndex": 222
+    }
+  ],
+  "snapshots": {
+    "before": {
+      "blockNumber": 11966727,
+      "blockHash": "0x83246c892773110f8be59f66447c4ef47b709a82e33ebe840e8f1fa25aac1938",
+      "blockTimestamp": 1792638012,
+      "blockTimeUTC": "2026-10-22T03:00:12.000Z",
+      "blockTimeBeijing": "2026-10-22 11:00:12 UTC+08:00",
+      "project": {
+        "creator": "0x406799E512b14CbDfCCB7EF2Acea9e6bCFB218C4",
+        "name": "HQC-E2E-Refund-1022",
+        "description": "Verify refunds when funding expires below the target.",
+        "target": "200000000000000",
+        "deadline": "1792638000",
+        "totalRaised": "30000000000000",
+        "escrowBalance": "30000000000000",
+        "status": "0",
+        "currentMilestone": "0"
+      },
+      "backer": {
+        "address": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+        "contribution": "30000000000000",
+        "refunded": false
+      }
+    },
+    "after": {
+      "blockNumber": 11966728,
+      "blockHash": "0x73a74e96e116828b037afae3ed47f4346898662f022fbc76780e9107810c433f",
+      "blockTimestamp": 1792638024,
+      "blockTimeUTC": "2026-10-22T03:00:24.000Z",
+      "blockTimeBeijing": "2026-10-22 11:00:24 UTC+08:00",
+      "project": {
+        "creator": "0x406799E512b14CbDfCCB7EF2Acea9e6bCFB218C4",
+        "name": "HQC-E2E-Refund-1022",
+        "description": "Verify refunds when funding expires below the target.",
+        "target": "200000000000000",
+        "deadline": "1792638000",
+        "totalRaised": "30000000000000",
+        "escrowBalance": "30000000000000",
+        "status": "2",
+        "currentMilestone": "0"
+      },
+      "backer": {
+        "address": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+        "contribution": "30000000000000",
+        "refunded": false
+      }
+    }
+  },
+  "snapshotScope": "The before snapshot is the complete previous block and the after snapshot is the complete receipt block; these are block-level snapshots, not transaction traces.",
+  "verification": {
+    "allPassed": true,
+    "checks": {
+      "networkSepolia": true,
+      "expectedTransactionHash": true,
+      "receiptSuccessful": true,
+      "zeroTransactionValue": true,
+      "fromB": true,
+      "canonicalReceiptBlock": true,
+      "decodedExpectedCall": true,
+      "uniqueExpectedFundingFailedEvent": true,
+      "deadlineReached": true,
+      "expectedDeadlineBeforeAndAfter": true,
+      "fundingToFailed": true,
+      "targetUnchanged": true,
+      "totalRaisedUnchanged": true,
+      "escrowUnchanged": true,
+      "contributionUnchanged": true,
+      "notRefundedBeforeAndAfter": true
+    }
+  }
+}

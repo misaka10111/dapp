@@ -1,0 +1,257 @@
+{
+  "observedAtUtc": "2026-10-22T02:10:02.755Z",
+  "chainId": 11155111,
+  "contract": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+  "projectId": 2,
+  "sourceCommit": "75e9190d277b573131d5018836af575cb8011fbc",
+  "verification": "Read-only receipt and fixed-block state verification; no transaction signed or sent by this script.",
+  "transactions": [
+    {
+      "role": "B",
+      "transaction": {
+        "_type": "TransactionResponse",
+        "accessList": [],
+        "blockNumber": 11966421,
+        "blockHash": "0x6c38f8e6836cd727e9e768b451ff767f2b6102ef3b15d49a3b22fa261dcafd7e",
+        "blobVersionedHashes": null,
+        "chainId": "11155111",
+        "data": "0xc1cbbca70000000000000000000000000000000000000000000000000000000000000002",
+        "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+        "gasLimit": "369774",
+        "gasPrice": "1500000014",
+        "hash": "0x6bc8c49885a02a4e09ca36963bbdfe402fcef420a55befaa879a7cd39fb04a19",
+        "maxFeePerGas": "1500000019",
+        "maxPriorityFeePerGas": "1500000000",
+        "maxFeePerBlobGas": null,
+        "nonce": 0,
+        "signature": {
+          "_type": "signature",
+          "networkV": null,
+          "r": "0x28bfaad1ede985a422e0d616219e7ca885f0df1369df44a7a6dea6405d0bf773",
+          "s": "0x3eec63b7e70dd0300a4b1c9aaf7cb429c800762cf5f05e8cb2a23a4d2086b1b9",
+          "v": 27
+        },
+        "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "index": 55,
+        "type": 2,
+        "value": "50000000000000"
+      },
+      "receipt": {
+        "_type": "TransactionReceipt",
+        "blockHash": "0x6c38f8e6836cd727e9e768b451ff767f2b6102ef3b15d49a3b22fa261dcafd7e",
+        "blockNumber": 11966421,
+        "contractAddress": null,
+        "cumulativeGasUsed": "34701036",
+        "from": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+        "gasPrice": "1500000014",
+        "blobGasUsed": null,
+        "blobGasPrice": null,
+        "gasUsed": "365704",
+        "hash": "0x6bc8c49885a02a4e09ca36963bbdfe402fcef420a55befaa879a7cd39fb04a19",
+        "index": 55,
+        "logs": [
+          {
+            "_type": "log",
+            "address": "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE",
+            "blockHash": "0x6c38f8e6836cd727e9e768b451ff767f2b6102ef3b15d49a3b22fa261dcafd7e",
+            "blockNumber": 11966421,
+            "data": "0x00000000000000000000000000000000000000000000000000002d79883d2000",
+            "index": 120,
+            "topics": [
+              "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+              "0x00000000000000000000000026791c26fba3612eb49fa763fa47cfecd66b6a1e",
+              "0x0000000000000000000000009b824ca674432b390e30a5164a76c04eeaa8f686"
+            ],
+            "transactionHash": "0x6bc8c49885a02a4e09ca36963bbdfe402fcef420a55befaa879a7cd39fb04a19",
+            "transactionIndex": 55
+          },
+          {
+            "_type": "log",
+            "address": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+            "blockHash": "0x6c38f8e6836cd727e9e768b451ff767f2b6102ef3b15d49a3b22fa261dcafd7e",
+            "blockNumber": 11966421,
+            "data": "0x00000000000000000000000000000000000000000000000000002d79883d2000",
+            "index": 121,
+            "topics": [
+              "0x865c884d49c8cecaef108efb20f7d282f26c0f9b0d24dd48e5592d4e02ec658d",
+              "0x0000000000000000000000000000000000000000000000000000000000000002",
+              "0x00000000000000000000000026791c26fba3612eb49fa763fa47cfecd66b6a1e"
+            ],
+            "transactionHash": "0x6bc8c49885a02a4e09ca36963bbdfe402fcef420a55befaa879a7cd39fb04a19",
+            "transactionIndex": 55
+          }
+        ],
+        "logsBloom": "0x04000000000000000000000000000000000000000000000000000000000800000000000000000000000002000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000010000000000010002000000000000000000000004820000000000010000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000100000000000080000000000000000000000000000008000002100000000008000000000000000000000000000000000000008000400000000000000000000000000000000000000000008000000000000000000000",
+        "status": 1,
+        "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686"
+      },
+      "timestampUtc": "2026-10-22T01:58:24.000Z",
+      "amountEth": "0.00005",
+      "events": [
+        {
+          "name": "ContributionReceived",
+          "args": {
+            "projectId": "2",
+            "backer": "0x26791C26Fba3612Eb49FA763fA47CfEcd66b6a1E",
+            "amount": "50000000000000"
+          }
+        }
+      ]
+    },
+    {
+      "role": "C",
+      "transaction": {
+        "_type": "TransactionResponse",
+        "accessList": [],
+        "blockNumber": 11966443,
+        "blockHash": "0x17c4eba9925cd83214b43a1b501a687dc191d5c8f89cfbc4207a1c54023fe773",
+        "blobVersionedHashes": null,
+        "chainId": "11155111",
+        "data": "0xc1cbbca70000000000000000000000000000000000000000000000000000000000000002",
+        "from": "0x3851E2C69AE098447Adc8038dC71817aBaf39bc8",
+        "gasLimit": "283129",
+        "gasPrice": "1500000014",
+        "hash": "0x69e08785c3725d6eed03cc69d74a983dd4a365456e9a72628f8397b2fed69c0b",
+        "maxFeePerGas": "1500000019",
+        "maxPriorityFeePerGas": "1500000000",
+        "maxFeePerBlobGas": null,
+        "nonce": 0,
+        "signature": {
+          "_type": "signature",
+          "networkV": null,
+          "r": "0x82e9380b72da26af1caee436f45cbde6af1b22efa58615ac8742ebc8c65bb92a",
+          "s": "0x1efeb2e0996f41393d5e2284b85bf0b4617036c40a2324f019fcc8914b43c86d",
+          "v": 28
+        },
+        "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+        "index": 7,
+        "type": 2,
+        "value": "50000000000000"
+      },
+      "receipt": {
+        "_type": "TransactionReceipt",
+        "blockHash": "0x17c4eba9925cd83214b43a1b501a687dc191d5c8f89cfbc4207a1c54023fe773",
+        "blockNumber": 11966443,
+        "contractAddress": null,
+        "cumulativeGasUsed": "788827",
+        "from": "0x3851E2C69AE098447Adc8038dC71817aBaf39bc8",
+        "gasPrice": "1500000014",
+        "blobGasUsed": null,
+        "blobGasPrice": null,
+        "gasUsed": "279742",
+        "hash": "0x69e08785c3725d6eed03cc69d74a983dd4a365456e9a72628f8397b2fed69c0b",
+        "index": 7,
+        "logs": [
+          {
+            "_type": "log",
+            "address": "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE",
+            "blockHash": "0x17c4eba9925cd83214b43a1b501a687dc191d5c8f89cfbc4207a1c54023fe773",
+            "blockNumber": 11966443,
+            "data": "0x00000000000000000000000000000000000000000000000000002d79883d2000",
+            "index": 7,
+            "topics": [
+              "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+              "0x0000000000000000000000003851e2c69ae098447adc8038dc71817abaf39bc8",
+              "0x0000000000000000000000009b824ca674432b390e30a5164a76c04eeaa8f686"
+            ],
+            "transactionHash": "0x69e08785c3725d6eed03cc69d74a983dd4a365456e9a72628f8397b2fed69c0b",
+            "transactionIndex": 7
+          },
+          {
+            "_type": "log",
+            "address": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+            "blockHash": "0x17c4eba9925cd83214b43a1b501a687dc191d5c8f89cfbc4207a1c54023fe773",
+            "blockNumber": 11966443,
+            "data": "0x00000000000000000000000000000000000000000000000000002d79883d2000",
+            "index": 8,
+            "topics": [
+              "0x865c884d49c8cecaef108efb20f7d282f26c0f9b0d24dd48e5592d4e02ec658d",
+              "0x0000000000000000000000000000000000000000000000000000000000000002",
+              "0x0000000000000000000000003851e2c69ae098447adc8038dc71817abaf39bc8"
+            ],
+            "transactionHash": "0x69e08785c3725d6eed03cc69d74a983dd4a365456e9a72628f8397b2fed69c0b",
+            "transactionIndex": 7
+          },
+          {
+            "_type": "log",
+            "address": "0x9b824CA674432B390E30A5164a76c04EeAa8f686",
+            "blockHash": "0x17c4eba9925cd83214b43a1b501a687dc191d5c8f89cfbc4207a1c54023fe773",
+            "blockNumber": 11966443,
+            "data": "0x00000000000000000000000000000000000000000000000000005af3107a4000",
+            "index": 9,
+            "topics": [
+              "0x88bfb1cb787b5a4eccce541cbd9b445a7b77c97dad63984f8db4478be569e1b6",
+              "0x0000000000000000000000000000000000000000000000000000000000000002"
+            ],
+            "transactionHash": "0x69e08785c3725d6eed03cc69d74a983dd4a365456e9a72628f8397b2fed69c0b",
+            "transactionIndex": 7
+          }
+        ],
+        "logsBloom": "0x44100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000002000000000000000000000010000000000000002000000000000000000000004820000000000010000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000100000000000080000000004000000000000000000008000002102000000008000000000000000000000000000000000000008000400000000000000100000000000000000000000000008000000000000000000000",
+        "status": 1,
+        "to": "0x9b824CA674432B390E30A5164a76c04EeAa8f686"
+      },
+      "timestampUtc": "2026-10-22T02:02:48.000Z",
+      "amountEth": "0.00005",
+      "events": [
+        {
+          "name": "ContributionReceived",
+          "args": {
+            "projectId": "2",
+            "backer": "0x3851E2C69AE098447Adc8038dC71817aBaf39bc8",
+            "amount": "50000000000000"
+          }
+        },
+        {
+          "name": "FundingSuccessful",
+          "args": {
+            "projectId": "2",
+            "totalRaised": "100000000000000"
+          }
+        }
+      ]
+    }
+  ],
+  "snapshot": {
+    "blockNumber": 11966479,
+    "blockHash": "0x1b0e7dc9e4967863341b602b3059677f8cb0f52eead01a92c9b189941d323726",
+    "timestampUtc": "2026-10-22T02:10:00.000Z",
+    "project": {
+      "creator": "0x406799E512b14CbDfCCB7EF2Acea9e6bCFB218C4",
+      "name": "HQC-E2E-Success-1022",
+      "description": "End-to-end test of contribution-weighted approvals and milestone payouts.",
+      "target": "100000000000000",
+      "deadline": "1792749600",
+      "totalRaised": "100000000000000",
+      "escrowBalance": "100000000000000",
+      "status": "1",
+      "currentMilestone": "0"
+    },
+    "milestones": [
+      {
+        "goal": "Verify first milestone approval and 40% payout.",
+        "evidence": "",
+        "evidenceUrl": "",
+        "approvalWeight": "0",
+        "withdrawnAmount": "0",
+        "submitted": false,
+        "approved": false,
+        "withdrawn": false
+      },
+      {
+        "goal": "Verify second milestone approval and final payout.",
+        "evidence": "",
+        "evidenceUrl": "",
+        "approvalWeight": "0",
+        "withdrawnAmount": "0",
+        "submitted": false,
+        "approved": false,
+        "withdrawn": false
+      }
+    ],
+    "contributions": {
+      "B": "50000000000000",
+      "C": "50000000000000"
+    }
+  }
+}

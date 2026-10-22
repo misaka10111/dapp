@@ -25,6 +25,26 @@ export function safeUrl(value) {
     return null;
   }
 }
+
+// Project list filters. Kept here (not in App) so the predicates stay testable.
+export function matchesFilter(key, project, account) {
+  switch (key) {
+    case "mine":
+      return !!account && project.creator.toLowerCase() === account.toLowerCase();
+    case "backed":
+      return (project.contribution ?? 0n) > 0n;
+    case "review":
+      return (
+        Number(project.status) === 1 &&
+        !!project.submitted &&
+        !project.approved &&
+        (project.contribution ?? 0n) > 0n &&
+        !project.approvedNow
+      );
+    default:
+      return true;
+  }
+}
 export function errorMessage(error) {
   const code = error?.code ?? error?.info?.error?.code;
   if (
