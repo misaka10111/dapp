@@ -10,3 +10,5 @@ chain-code.txt
 test-results.json
 simulation-results.json
 artifacts/
+.gh-token
+.workbuddy/

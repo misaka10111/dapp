@@ -25,6 +25,8 @@ COMP7610 课程项目：支持者为项目出资，项目方按两个里程碑�
 | `scripts/compile-contract.mjs` | 修改合约后，可用它重新编译并更新 ABI；手动测试无需操作。 |
 | `tests/milestone-fund.test.mjs` | 本地连续状态测试，覆盖两阶段放款、退款及边界，不连接钱包。 |
 | `scripts/verify-deployment.mjs` | 只读核对 Sepolia 运行字节码与编译结果，保存可复现证据。 |
+| `scripts/check-format.mjs` | 基础格式检查，无需额外依赖。 |
+| `.github/workflows/ci.yml` | PR 与 main 的自动检查：安装、格式、测试、构建。 |
 | `README.md` | 本说明文件。 |
 
 ## 2. 安装依赖并启动网页
@@ -197,7 +199,10 @@ npm test                  # 本地连续状态测试：5 类场景 × 2 套编�
 npm run verify:deployment # 只读核对现有 Sepolia 合约，成功时输出 full-match
 npm run build             # 检查正式构建，生成 dist
 npm run compile:contract  # 修改 Solidity 后重新生成 ABI
+npm run format:check      # 基础格式检查：尾随空白、Tab 缩进、末尾换行、行尾混用、JSON 有效性
 ```
+
+向 `main` 提交 PR 时，GitHub Actions 会自动执行 `npm ci`、`npm run format:check`、`npm test` 和 `npm run build`（`.github/workflows/ci.yml`）。`quality-gate` 已设为 `main` 的必需检查，未通过不能合并；推送到 main 也会跑同一套检查。格式检查只报告不修改文件，按提示手动修正后重新提交即可。
 
 新增测试依赖后先运行一次 `npm ci`。`npm test` 在进程内的虚拟环境执行签名交易，初始化资金、部署合约并连续操作，无需 MetaMask、RPC 或测试 ETH；每次从干净状态开始。两套编译配置都在 Osaka VM 中运行，分别覆盖仓库默认构建和现有部署的复现构建。
 
