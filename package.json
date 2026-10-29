@@ -10,6 +10,7 @@
     "compile:contract": "node scripts/compile-contract.mjs",
     "test": "npm run test:contract",
     "test:contract": "node --test tests/milestone-fund.test.mjs",
+    "format:check": "node scripts/check-format.mjs",
     "verify:deployment": "node scripts/verify-deployment.mjs"
   },
   "dependencies": {
