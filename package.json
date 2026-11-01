@@ -8,8 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "compile:contract": "node scripts/compile-contract.mjs",
-    "test": "npm run test:contract",
+    "test": "node --test \"tests/**/*.test.mjs\"",
     "test:contract": "node --test tests/milestone-fund.test.mjs",
+    "test:unit": "node --test tests/utils.test.mjs tests/wallet.test.mjs",
     "format:check": "node scripts/check-format.mjs",
     "verify:deployment": "node scripts/verify-deployment.mjs"
   },

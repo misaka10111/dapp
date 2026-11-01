@@ -6,11 +6,10 @@ import {
   getAddress,
   isAddress,
 } from "ethers";
-import abi from "./abi/MilestoneFund.json";
+import abi from "./abi/MilestoneFund.json" with { type: "json" };
 
 export const SEPOLIA_CHAIN_ID = 11155111n;
 export const EXPLORER = "https://sepolia.etherscan.io";
-const RAW_ADDRESS = (import.meta.env.VITE_CONTRACT_ADDRESS ?? "").trim();
 
 // Chat apps and slides often rewrite the letter case of a checksummed address,
 // which makes isAddress() reject an otherwise correct address. The hex digits
@@ -22,14 +21,31 @@ function normalizeAddress(raw) {
   return isAddress(lower) ? getAddress(lower) : "";
 }
 
-export const CONTRACT_ADDRESS = normalizeAddress(RAW_ADDRESS);
-export const RPC_URL = (import.meta.env.VITE_SEPOLIA_RPC_URL ?? "").trim();
-export const CONFIGURED =
-  CONTRACT_ADDRESS !== "" && CONTRACT_ADDRESS !== ZeroAddress;
-export const CONFIG_ERROR =
-  RAW_ADDRESS && !CONFIGURED
-    ? "Invalid contract address. Use the deployed Sepolia address in .env.local."
-    : "";
+// Pure so tests can drive every branch without depending on Vite's env at import.
+export function resolveConfig(rawAddress, rpcUrl) {
+  const raw = (rawAddress ?? "").trim();
+  const contractAddress = normalizeAddress(raw);
+  const configured = contractAddress !== "" && contractAddress !== ZeroAddress;
+  return {
+    contractAddress,
+    rpcUrl: (rpcUrl ?? "").trim(),
+    configured,
+    error:
+      raw && !configured
+        ? "Invalid contract address. Use the deployed Sepolia address in .env.local."
+        : "",
+  };
+}
+
+const CONFIG = resolveConfig(
+  import.meta.env?.VITE_CONTRACT_ADDRESS,
+  import.meta.env?.VITE_SEPOLIA_RPC_URL,
+);
+
+export const CONTRACT_ADDRESS = CONFIG.contractAddress;
+export const RPC_URL = CONFIG.rpcUrl;
+export const CONFIGURED = CONFIG.configured;
+export const CONFIG_ERROR = CONFIG.error;
 export const ABI = abi;
 
 // Prefer MetaMask specifically, including legacy multi-wallet injection.
@@ -46,24 +62,25 @@ export function browserProvider() {
   return new BrowserProvider(wallet);
 }
 
-export function readProvider() {
-  if (RPC_URL) return new JsonRpcProvider(RPC_URL, Number(SEPOLIA_CHAIN_ID));
+export function readProvider(config = CONFIG) {
+  if (config.rpcUrl)
+    return new JsonRpcProvider(config.rpcUrl, Number(SEPOLIA_CHAIN_ID));
   return browserProvider();
 }
 
-export async function checkedContract(provider) {
-  if (!CONFIGURED)
+export async function checkedContract(provider, config = CONFIG) {
+  if (!config.configured)
     throw new Error(
-      CONFIG_ERROR ||
+      config.error ||
         "Contract is not configured. Deploy in Remix and set VITE_CONTRACT_ADDRESS.",
     );
   if ((await provider.getNetwork()).chainId !== SEPOLIA_CHAIN_ID)
     throw new Error("Switch to Ethereum Sepolia to load this contract.");
-  if ((await provider.getCode(CONTRACT_ADDRESS)) === "0x")
+  if ((await provider.getCode(config.contractAddress)) === "0x")
     throw new Error(
       "No contract at this Sepolia address. Check your configuration.",
     );
-  return new Contract(getAddress(CONTRACT_ADDRESS), ABI, provider);
+  return new Contract(getAddress(config.contractAddress), ABI, provider);
 }
 
 export async function switchToSepolia() {

@@ -24,6 +24,9 @@ COMP7610 课程项目：支持者为项目出资，项目方按两个里程碑�
 | `.gitignore` | Git 忽略规则。 |
 | `scripts/compile-contract.mjs` | 修改合约后，可用它重新编译并更新 ABI；手动测试无需操作。 |
 | `tests/milestone-fund.test.mjs` | 本地连续状态测试，覆盖两阶段放款、退款及边界，不连接钱包。 |
+| `tests/utils.test.mjs` | 前端工具函数单元测试：金额格式、百分比、40/60 拆分、URL 校验、列表筛选与错误文案。 |
+| `tests/wallet.test.mjs` | 钱包与交易测试骨架：钱包发现、网络校验、调用参数与错误映射。 |
+| `tests/helpers/fake-wallet.mjs` | 测试用的 EIP-1193 钱包模拟器，可模拟多钱包、拒绝签名与错误链。 |
 | `scripts/verify-deployment.mjs` | 只读核对 Sepolia 运行字节码与编译结果，保存可复现证据。 |
 | `scripts/check-format.mjs` | 基础格式检查，无需额外依赖。 |
 | `.github/workflows/ci.yml` | PR 与 main 的自动检查：安装、格式、测试、构建。 |
@@ -195,7 +198,9 @@ npm run dev
 ## 7. 其他命令和常见问题
 
 ```bash
-npm test                  # 本地连续状态测试：5 类场景 × 2 套编译配置，共 10 项
+npm test                  # 全部测试：合约状态测试 10 项 + 前端单元测试 71 项
+npm run test:contract     # 只跑合约状态测试
+npm run test:unit         # 只跑前端单元测试
 npm run verify:deployment # 只读核对现有 Sepolia 合约，成功时输出 full-match
 npm run build             # 检查正式构建，生成 dist
 npm run compile:contract  # 修改 Solidity 后重新生成 ABI
@@ -204,7 +209,7 @@ npm run format:check      # 基础格式检查：尾随空白、Tab 缩进、末
 
 向 `main` 提交 PR 时，GitHub Actions 会自动执行 `npm ci`、`npm run format:check`、`npm test` 和 `npm run build`（`.github/workflows/ci.yml`）。`quality-gate` 已设为 `main` 的必需检查，未通过不能合并；推送到 main 也会跑同一套检查。格式检查只报告不修改文件，按提示手动修正后重新提交即可。
 
-新增测试依赖后先运行一次 `npm ci`。`npm test` 在进程内的虚拟环境执行签名交易，初始化资金、部署合约并连续操作，无需 MetaMask、RPC 或测试 ETH；每次从干净状态开始。两套编译配置都在 Osaka VM 中运行，分别覆盖仓库默认构建和现有部署的复现构建。
+新增测试依赖后先运行一次 `npm ci`。`npm test` 现在跑两部分：合约状态测试在进程内的虚拟环境执行签名交易，初始化资金、部署合约并连续操作，无需 MetaMask、RPC 或测试 ETH，每次从干净状态开始，两套编译配置都在 Osaka VM 中运行，分别覆盖仓库默认构建和现有部署的复现构建；前端单元测试只跑纯函数和模拟钱包，不读 `.env.local`、不连网、不依赖当前时间，因此结果稳定可复跑。React 组件级的回归测试尚未接入，`tests/helpers/fake-wallet.mjs` 为下一步准备了可复用的钱包模拟器。
 
 `verify:deployment` 需要联网读取 Sepolia，但不签名或发送交易，也不修改前端 ABI。它将证据写入 `docs/evidence/deployment/`，默认使用新文件名；仅完整运行字节码匹配才返回退出码 0。详细命令及结果解释见上面的两个记录文件。
 
