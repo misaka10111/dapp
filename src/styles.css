@@ -684,6 +684,11 @@ button:disabled {
   color: var(--warn);
   border-color: #f5dfc2;
 }
+.badge-expired {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-color: #f5dfc2;
+}
 
 /* ---------------------------------------------------------------- progress */
 .progress {
