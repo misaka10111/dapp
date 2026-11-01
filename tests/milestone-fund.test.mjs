@@ -265,4 +265,30 @@ for (const profile of profiles) {
     assert.equal((await h.read("getProject", [id])).status, 4n);
     assert.equal(await h.balance(), 0n);
   });
+
+  test(`${profile.name}: a zero first-stage payout skips the ETH transfer`, async () => {
+    const h = await localChain(artifacts);
+    const receiver = await h.deploy("A", artifacts.receiver, [h.fund.address.toString()]);
+    await h.send("A", "create", [1n, h.now() + 100n], { target: receiver });
+    const id = 0n;
+    await h.send("B", "contribute", [id], { value: 1n });
+    await h.send("A", "evidence", [id], { target: receiver });
+    await h.send("B", "approveMilestone", [id, 0]);
+
+    // floor(1 * 40 / 100) = 0, and the receiver rejects ETH: success proves the call was skipped.
+    await h.send("A", "withdraw", [id], { target: receiver });
+    const stage0 = await h.read("getMilestone", [id, 0]);
+    assert.equal(stage0.withdrawn, true);
+    assert.equal(stage0.withdrawnAmount, 0n);
+    assert.equal((await h.read("getProject", [id])).currentMilestone, 1n);
+    assert.equal((await h.read("getProject", [id])).escrowBalance, 1n);
+    assert.equal(await h.balance(receiver.address), 0n);
+
+    // The second stage pays the remaining 1 wei, so the same rejecting receiver must fail.
+    await h.send("A", "evidenceFor", [id, 1], { target: receiver });
+    await h.send("B", "approveMilestone", [id, 1]);
+    await h.send("A", "withdrawFor", [id, 1], { target: receiver, revert: "ETH transfer failed" });
+    assert.equal((await h.read("getMilestone", [id, 1])).withdrawn, false);
+    assert.equal((await h.read("getProject", [id])).escrowBalance, 1n);
+  });
 }

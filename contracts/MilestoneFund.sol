@@ -186,8 +186,11 @@ contract MilestoneFund {
         emit FundsWithdrawn(projectId, milestone, amount);
         if (milestone == 1) emit ProjectCompleted(projectId);
         // All accounting is committed before the external call. Failure rolls it back.
-        (bool sent,) = p.creator.call{value: amount}("");
-        require(sent, "ETH transfer failed");
+        // A zero payout skips the call entirely, so a rejecting creator cannot block it.
+        if (amount > 0) {
+            (bool sent,) = p.creator.call{value: amount}("");
+            require(sent, "ETH transfer failed");
+        }
     }
 
     function claimRefund(uint256 projectId) external validProject(projectId) nonReentrant {
