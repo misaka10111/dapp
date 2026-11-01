@@ -2,10 +2,11 @@
 pragma solidity ^0.8.24;
 
 /// @title MilestoneFund Lite - two-stage, contribution-weighted crowdfunding.
-/// @notice Educational prototype. Successful funds may remain locked indefinitely
-/// if backers do not approve. No owner, admin withdrawal, fee, or voting timeout.
+/// @notice Educational prototype. No owner, admin withdrawal, or fee. Funds can no
+/// longer lock forever: an approval that times out, or evidence the creator never
+/// submits, lets backers reclaim their share of the remaining escrow.
 contract MilestoneFund {
-    enum ProjectStatus { Funding, Successful, Failed, Completed }
+    enum ProjectStatus { Funding, Successful, Failed, Completed, Expired }
 
     struct Project {
         address payable creator;
@@ -17,6 +18,7 @@ contract MilestoneFund {
         uint256 escrowBalance;
         ProjectStatus status;
         uint8 currentMilestone;
+        uint256 successfulAt;
     }
 
     struct Milestone {
@@ -25,10 +27,16 @@ contract MilestoneFund {
         string evidenceUrl;
         uint256 approvalWeight;
         uint256 withdrawnAmount;
+        uint256 submittedAt;
         bool submitted;
         bool approved;
         bool withdrawn;
     }
+
+    /// @notice How long backers have to approve after evidence is submitted.
+    uint256 public constant APPROVAL_TIMEOUT = 7 days;
+    /// @notice How long the creator has to submit evidence after funding succeeds.
+    uint256 public constant SUBMISSION_TIMEOUT = 7 days;
 
     uint256 public projectCount;
     mapping(uint256 => Project) private projects;
@@ -49,6 +57,7 @@ contract MilestoneFund {
     event ProjectCompleted(uint256 indexed projectId);
     event RefundClaimed(uint256 indexed projectId, address indexed backer, uint256 amount);
     event ExcessRefunded(uint256 indexed projectId, address indexed backer, uint256 amount);
+    event ProjectExpired(uint256 indexed projectId);
 
     modifier validProject(uint256 projectId) {
         require(projectId < projectCount, "Unknown project");
@@ -77,7 +86,7 @@ contract MilestoneFund {
         require(target > 0, "Target must be positive");
         require(deadline > block.timestamp, "Deadline must be future");
         projectId = projectCount++;
-        projects[projectId] = Project(payable(msg.sender), name, description, target, deadline, 0, 0, ProjectStatus.Funding, 0);
+        projects[projectId] = Project(payable(msg.sender), name, description, target, deadline, 0, 0, ProjectStatus.Funding, 0, 0);
         milestones[projectId][0].goal = firstGoal;
         milestones[projectId][1].goal = secondGoal;
         emit ProjectCreated(projectId, msg.sender, target, deadline);
@@ -105,6 +114,7 @@ contract MilestoneFund {
             emit ExcessRefunded(projectId, msg.sender, excess);
         }
         if (p.totalRaised == p.target) {
+            p.successfulAt = block.timestamp;
             p.status = ProjectStatus.Successful;
             emit FundingSuccessful(projectId, p.totalRaised);
         }
@@ -133,6 +143,7 @@ contract MilestoneFund {
         m.evidence = evidence;
         m.evidenceUrl = evidenceUrl;
         m.submitted = true;
+        m.submittedAt = block.timestamp;
         emit EvidenceSubmitted(projectId, milestone, evidence, evidenceUrl);
     }
 
@@ -186,6 +197,38 @@ contract MilestoneFund {
         require(amount > 0 && !refunded[projectId][msg.sender], "No refund available");
         refunded[projectId][msg.sender] = true;
         p.escrowBalance -= amount;
+        emit RefundClaimed(projectId, msg.sender, amount);
+        (bool sent,) = payable(msg.sender).call{value: amount}("");
+        require(sent, "ETH transfer failed");
+    }
+
+    /// @notice Reclaim a share of the remaining escrow when the current milestone times
+    /// out: either backers did not approve submitted evidence, or the creator never
+    /// submitted it. The share is proportional to the original contribution, so money
+    /// already paid out for an earlier milestone is not refundable.
+    function claimExpiredRefund(uint256 projectId) external validProject(projectId) nonReentrant {
+        Project storage p = projects[projectId];
+        require(
+            p.status == ProjectStatus.Successful || p.status == ProjectStatus.Expired,
+            "Project not active"
+        );
+        uint8 stage = p.currentMilestone;
+        require(stage < 2, "Project completed");
+        Milestone storage m = milestones[projectId][stage];
+        if (m.submitted) {
+            require(!m.approved, "Milestone already approved");
+            require(block.timestamp >= m.submittedAt + APPROVAL_TIMEOUT, "Approval window still open");
+        } else {
+            require(block.timestamp >= p.successfulAt + SUBMISSION_TIMEOUT, "Submission window still open");
+        }
+        uint256 amount = contributions[projectId][msg.sender] * p.escrowBalance / p.totalRaised;
+        require(amount > 0 && !refunded[projectId][msg.sender], "No refund available");
+        refunded[projectId][msg.sender] = true;
+        p.escrowBalance -= amount;
+        if (p.status == ProjectStatus.Successful) {
+            p.status = ProjectStatus.Expired;
+            emit ProjectExpired(projectId);
+        }
         emit RefundClaimed(projectId, msg.sender, amount);
         (bool sent,) = payable(msg.sender).call{value: amount}("");
         require(sent, "ETH transfer failed");
