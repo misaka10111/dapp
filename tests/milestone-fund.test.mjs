@@ -68,15 +68,32 @@ for (const profile of profiles) {
     await h.send("B", "claimRefund", [id], { revert: "Project not failed" });
   });
 
-  test(`${profile.name}: overshoot uses actual total; rounding and zero first payout preserve every wei`, async () => {
+  test(`${profile.name}: contributions cap at the target and refund the excess; zero first payout preserves every wei`, async () => {
     for (const scenario of [
-      { target: 100n, contributions: [["B", 50n], ["C", 51n]], approver: "C", total: 101n, payments: [40n, 61n] },
-      { target: 1n, contributions: [["B", 1n]], approver: "B", total: 1n, payments: [0n, 1n] },
+      { target: 100n, contributions: [["B", 51n], ["C", 51n]], approver: "B", total: 100n, excess: 2n, payments: [40n, 60n] },
+      { target: 1n, contributions: [["B", 1n]], approver: "B", total: 1n, excess: 0n, payments: [0n, 1n] },
     ]) {
       const h = await localChain(artifacts);
       const id = await h.create({ target: scenario.target });
-      for (const [actor, value] of scenario.contributions) await h.send(actor, "contribute", [id], { value });
+      let accepted = 0n;
+      let refunded = 0n;
+      for (const [actor, value] of scenario.contributions) {
+        const result = await h.send(actor, "contribute", [id], { value });
+        const received = event(result, "ContributionReceived").amount;
+        accepted += received;
+        refunded += result.events
+          .filter((entry) => entry.name === "ExcessRefunded")
+          .reduce((sum, entry) => sum + entry.args.amount, 0n);
+        assert.equal(
+          await h.read("contributions", [id, h.address(actor)]),
+          received,
+          "Only the accepted amount may be recorded",
+        );
+      }
+      assert.equal(accepted, scenario.total, "Accepted contributions must equal the target");
+      assert.equal(refunded, scenario.excess, "Excess must be returned in the same transaction");
       assert.equal((await h.read("getProject", [id])).totalRaised, scenario.total);
+      assert.equal(await h.balance(), scenario.total, "Contract keeps exactly the accepted amount");
       await h.send("B", "contribute", [id], { value: 1n, revert: "Funding closed" });
       for (const stage of [0, 1]) {
         await h.send("A", "submitEvidence", evidence(id, stage));

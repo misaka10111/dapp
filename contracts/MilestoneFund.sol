@@ -48,6 +48,7 @@ contract MilestoneFund {
     event FundsWithdrawn(uint256 indexed projectId, uint8 indexed milestone, uint256 amount);
     event ProjectCompleted(uint256 indexed projectId);
     event RefundClaimed(uint256 indexed projectId, address indexed backer, uint256 amount);
+    event ExcessRefunded(uint256 indexed projectId, address indexed backer, uint256 amount);
 
     modifier validProject(uint256 projectId) {
         require(projectId < projectCount, "Unknown project");
@@ -82,18 +83,28 @@ contract MilestoneFund {
         emit ProjectCreated(projectId, msg.sender, target, deadline);
     }
 
-    /// @notice The last contribution may overshoot. Voting and budgets use totalRaised.
-    function contribute(uint256 projectId) external payable validProject(projectId) {
+    /// @notice Contributions are capped at the target. Anything above the remaining
+    /// amount is returned in the same transaction, so totalRaised never exceeds target.
+    function contribute(uint256 projectId) external payable validProject(projectId) nonReentrant {
         Project storage p = projects[projectId];
         require(p.status == ProjectStatus.Funding, "Funding closed");
         require(block.timestamp < p.deadline, "Deadline reached");
         require(msg.sender != p.creator, "Creator cannot contribute");
         require(msg.value > 0, "Contribution must be positive");
-        contributions[projectId][msg.sender] += msg.value;
-        p.totalRaised += msg.value;
-        p.escrowBalance += msg.value;
-        emit ContributionReceived(projectId, msg.sender, msg.value);
-        if (p.totalRaised >= p.target) {
+        uint256 remaining = p.target - p.totalRaised;
+        uint256 accepted = msg.value > remaining ? remaining : msg.value;
+        uint256 excess = msg.value - accepted;
+        contributions[projectId][msg.sender] += accepted;
+        p.totalRaised += accepted;
+        p.escrowBalance += accepted;
+        emit ContributionReceived(projectId, msg.sender, accepted);
+        // Accounting is committed before the external call; a failed refund reverts everything.
+        if (excess > 0) {
+            (bool ok,) = payable(msg.sender).call{value: excess}("");
+            require(ok, "Excess refund failed");
+            emit ExcessRefunded(projectId, msg.sender, excess);
+        }
+        if (p.totalRaised == p.target) {
             p.status = ProjectStatus.Successful;
             emit FundingSuccessful(projectId, p.totalRaised);
         }
