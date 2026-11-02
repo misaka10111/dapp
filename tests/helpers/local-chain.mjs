@@ -43,7 +43,16 @@ export function compileFixtures(profile) {
   };
 }
 
-export async function localChain(artifacts) {
+export const DEFAULT_APPROVAL_TIMEOUT = 7n * 24n * 60n * 60n;
+export const DEFAULT_SUBMISSION_TIMEOUT = 7n * 24n * 60n * 60n;
+
+export async function localChain(
+  artifacts,
+  {
+    approvalTimeout = DEFAULT_APPROVAL_TIMEOUT,
+    submissionTimeout = DEFAULT_SUBMISSION_TIMEOUT,
+  } = {},
+) {
   const common = createCustomCommon({ chainId: 31337 }, Mainnet, { hardfork: Hardfork.Osaka });
   const vm = await createVM({ common });
   const accounts = {};
@@ -77,7 +86,7 @@ export async function localChain(artifacts) {
     assert.equal(result.receipt.status, 1, "Local contract deployment must succeed");
     return { address: result.createdAddress, iface };
   }
-  const fund = await deploy("A", artifacts.fund);
+  const fund = await deploy("A", artifacts.fund, [approvalTimeout, submissionTimeout]);
 
   async function read(name, args = [], target = fund) {
     const result = await vm.evm.runCall({

@@ -1,6 +1,6 @@
 # MilestoneFund
 
-COMP7610 课程项目：支持者为项目出资，项目方按两个里程碑提交成果。支持者审批通过后，项目方依次提取 40% 和剩余 60% 的资金。仅使用 Sepolia 测试 ETH。
+COMP7610 课程项目：支持者为项目出资，项目方按两个里程碑提交成果。支持者审批通过后，项目方依次提取 40% 和剩余 60% 的资金。仅使用 Sepolia 测试 ETH。合约 v2 起：出资封顶于目标金额（超额当场退回）；审批或成果提交超时后，支持者可按贡献比例取回剩余托管资金。
 
 **测试方式：组员用 Remix 部署合约，大家在各自电脑启动网页，通过 MetaMask 手动操作。** 只需一位组员部署到 Sepolia，再把合约地址发给其他人。
 
@@ -75,14 +75,14 @@ npm run dev  # 安装完成后，启动网页
 
 ## 3. 组员使用 Remix 部署合约
 
-下面的 **0.8.24 / 优化开启 / Paris** 步骤用于按仓库默认配置新部署。现有测试合约 `0x9b824CA674432B390E30A5164a76c04EeAa8f686` 实际使用 **0.8.34 / 优化关闭 / Osaka**；已找到包括 metadata 在内的完整运行字节码匹配。复现现有实例应使用 [部署核对记录](docs/deployment-verification.md) 中保存的 Standard JSON 输入，无需为本轮测试重新部署。
+下面的 **0.8.24 / 优化开启 / Paris** 步骤用于按仓库默认配置部署 v2。旧测试合约 `0x9b824CA674432B390E30A5164a76c04EeAa8f686` 是 **v1**，没有封顶、超时退款和 0 wei 跳过逻辑，它的字节码复现见 [部署核对记录](docs/deployment-verification.md)。v2 必须重新部署，并把新地址填进 `.env.local`；前端会读取合约上的 `APPROVAL_TIMEOUT`，读到就自动启用倒计时和退款入口。部署前先运行 `npm run compile:contract` 更新 ABI。
 
 1. 在安装 MetaMask 的浏览器中打开 [Remix](https://remix.ethereum.org)。
 2. 新建 `MilestoneFund.sol`，复制仓库中 `contracts/MilestoneFund.sol` 的全部内容。
 3. 在 Solidity Compiler 中选择 **0.8.24**，开启 Optimization，runs 设为 **200**，EVM Version 选择 **paris**，不启用 via-IR，点击 Compile。
 4. 准备两个不同的 MetaMask 账户：**A 为发起人，B 为支持者**。选择 **Ethereum Sepolia**。A 需要测试 ETH 支付 gas；B 需要 **0.01 测试 ETH，另外预留 gas**。
 5. Remix 的 Deploy & Run 中，Environment 选择 **Browser Extension / MetaMask**，旧版可能叫 Injected Provider。核对网络是 Sepolia、账户是 A。
-6. 合约选择 **MilestoneFund**，Value 为 **0**，不需要构造参数。点击 Deploy，在 MetaMask 确认，等待成功。
+6. 合约选择 **MilestoneFund**，Value 为 **0**。v2 有**两个构造参数**，按顺序填：`approvalTimeout`、`submissionTimeout`（单位秒，取值 1 到 2592000 即 30 天）。正式使用填 `604800` 和 `604800`（7 天）；如果要现场演示超时退款，另部署一个填入 `600` 和 `600`（10 分钟）的演示实例。点击 Deploy，在 MetaMask 确认，等待成功。
 7. 复制 Deployed Contracts 中的**合约地址**，连同部署交易哈希发给组员。不要把钱包地址或交易哈希当成合约地址。
 
 也可以先用 Remix VM 的虚拟账户检查合约。**Remix VM 的地址不能填到这个 Sepolia 前端中**，网页交易需要真正部署在 Sepolia。
@@ -163,7 +163,9 @@ npm run dev
 | 输入检查 | 空必填项、零/负金额、过去的截止时间不能成功提交。 |
 | 多次出资 | 目标 0.01，B 先出 0.003，再出 0.007。累计应为 0.01，项目成功。 |
 | 发起人不能自投 | A 打开自己的项目，应看到限制提示；在 Remix VM 直接调用也应失败。 |
-| 超额及关闭 | 目标 0.01，B 出 0.012。全部保留并关闭筹款，两阶段预算为 0.0048 和 0.0072。 |
+| 超额及封顶 | 目标 0.01，B 出 0.012。只接受 0.01，0.002 当场退回，两阶段预算为 0.004 和 0.006。 |
+| 审批超时退款 | 提交成果后 7 天无人审批，支持者可按贡献比例取回剩余托管资金，项目转为 Expired。 |
+| 提交超时退款 | 筹款成功后 7 天创作者仍未提交成果，支持者可按同样方式取回，不必无限等待。 |
 | 成果与权限 | 只有发起人能提交成果，同阶段不能重复提交或修改。 |
 | 加权审批 | 恰好 50% 不通过，严格超过 50% 立即通过。详见下方示例。 |
 | 提款权限 | 未批准不能提款，非发起人不能提款，已提阶段不能重复提款。 |
@@ -198,7 +200,7 @@ npm run dev
 ## 7. 其他命令和常见问题
 
 ```bash
-npm test                  # 全部测试：合约状态测试 10 项 + 前端单元测试 71 项
+npm test                  # 全部测试：合约状态测试 20 项 + 前端单元测试 71 项
 npm run test:contract     # 只跑合约状态测试
 npm run test:unit         # 只跑前端单元测试
 npm run verify:deployment # 只读核对现有 Sepolia 合约，成功时输出 full-match
@@ -228,4 +230,4 @@ npm run format:check      # 基础格式检查：尾随空白、Tab 缩进、末
 
 上传 GitHub 时，只上传源码、README 和配置模板。不要上传 `node_modules/`、`dist/`、`artifacts/`、`.git/`、`.DS_Store`、`.env.local` 或秘密信息。开发使用 `milestonefunddemo` 分支，不修改 main。
 
-本项目仅面向电脑浏览器。**真实 Remix/Sepolia 手动验收仍需组员执行。** 成功众筹后，如果支持者一直不审批，资金可能长期锁定；本原型没有审批截止时间或部分退款机制。
+本项目仅面向电脑浏览器。**真实 Remix/Sepolia 手动验收仍需组员执行。** 成功众筹后，如果支持者一直不审批（或创作者始终不提交成果），超过 7 天后支持者可按贡献比例取回剩余托管资金；已经释放的阶段不会回退，退款按整数除法计算，可能留下几 wei 的余数留在合约里。

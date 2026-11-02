@@ -1,5 +1,21 @@
 [
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "approvalTimeout",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "submissionTimeout",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -84,6 +100,31 @@
       }
     ],
     "name": "EvidenceSubmitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "projectId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "backer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "ExcessRefunded",
     "type": "event"
   },
   {
@@ -214,6 +255,19 @@
         "internalType": "uint256",
         "name": "projectId",
         "type": "uint256"
+      }
+    ],
+    "name": "ProjectExpired",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "projectId",
+        "type": "uint256"
       },
       {
         "indexed": true,
@@ -232,6 +286,32 @@
     "type": "event"
   },
   {
+    "inputs": [],
+    "name": "APPROVAL_TIMEOUT",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "SUBMISSION_TIMEOUT",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -245,6 +325,19 @@
       }
     ],
     "name": "approveMilestone",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "projectId",
+        "type": "uint256"
+      }
+    ],
+    "name": "claimExpiredRefund",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -399,6 +492,11 @@
             "type": "uint256"
           },
           {
+            "internalType": "uint256",
+            "name": "submittedAt",
+            "type": "uint256"
+          },
+          {
             "internalType": "bool",
             "name": "submitted",
             "type": "bool"
@@ -478,6 +576,11 @@
             "internalType": "uint8",
             "name": "currentMilestone",
             "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "successfulAt",
+            "type": "uint256"
           }
         ],
         "internalType": "struct MilestoneFund.Project",

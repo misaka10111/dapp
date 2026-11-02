@@ -68,15 +68,32 @@ for (const profile of profiles) {
     await h.send("B", "claimRefund", [id], { revert: "Project not failed" });
   });
 
-  test(`${profile.name}: overshoot uses actual total; rounding and zero first payout preserve every wei`, async () => {
+  test(`${profile.name}: contributions cap at the target and refund the excess; zero first payout preserves every wei`, async () => {
     for (const scenario of [
-      { target: 100n, contributions: [["B", 50n], ["C", 51n]], approver: "C", total: 101n, payments: [40n, 61n] },
-      { target: 1n, contributions: [["B", 1n]], approver: "B", total: 1n, payments: [0n, 1n] },
+      { target: 100n, contributions: [["B", 51n], ["C", 51n]], approver: "B", total: 100n, excess: 2n, payments: [40n, 60n] },
+      { target: 1n, contributions: [["B", 1n]], approver: "B", total: 1n, excess: 0n, payments: [0n, 1n] },
     ]) {
       const h = await localChain(artifacts);
       const id = await h.create({ target: scenario.target });
-      for (const [actor, value] of scenario.contributions) await h.send(actor, "contribute", [id], { value });
+      let accepted = 0n;
+      let refunded = 0n;
+      for (const [actor, value] of scenario.contributions) {
+        const result = await h.send(actor, "contribute", [id], { value });
+        const received = event(result, "ContributionReceived").amount;
+        accepted += received;
+        refunded += result.events
+          .filter((entry) => entry.name === "ExcessRefunded")
+          .reduce((sum, entry) => sum + entry.args.amount, 0n);
+        assert.equal(
+          await h.read("contributions", [id, h.address(actor)]),
+          received,
+          "Only the accepted amount may be recorded",
+        );
+      }
+      assert.equal(accepted, scenario.total, "Accepted contributions must equal the target");
+      assert.equal(refunded, scenario.excess, "Excess must be returned in the same transaction");
       assert.equal((await h.read("getProject", [id])).totalRaised, scenario.total);
+      assert.equal(await h.balance(), scenario.total, "Contract keeps exactly the accepted amount");
       await h.send("B", "contribute", [id], { value: 1n, revert: "Funding closed" });
       for (const stage of [0, 1]) {
         await h.send("A", "submitEvidence", evidence(id, stage));
@@ -177,5 +194,116 @@ for (const profile of profiles) {
     assert.equal((await h.read("getProject", [q])).escrowBalance, 0n);
     assert.equal((await h.read("getProject", [p])).escrowBalance, 60n);
     assert.equal(await h.balance(), 60n);
+  });
+
+  test(`${profile.name}: approval timeout refunds the remaining escrow proportionally`, async () => {
+    const h = await localChain(artifacts);
+    const timeout = await h.read("APPROVAL_TIMEOUT");
+    const id = await h.create({ target: 100n });
+    await h.send("B", "contribute", [id], { value: 100n });
+    await h.send("A", "submitEvidence", evidence(id, 0));
+    const submittedAt = h.now();
+    await h.send("B", "claimExpiredRefund", [id], { revert: "Approval window still open" });
+
+    h.at(submittedAt + timeout);
+    await h.send("C", "claimExpiredRefund", [id], { revert: "No refund available" });
+    const before = await h.balance(h.accounts.B.address);
+    const refund = await h.send("B", "claimExpiredRefund", [id]);
+    assert.equal(event(refund, "RefundClaimed").amount, 100n);
+    assert.equal(event(refund, "ProjectExpired").projectId, id);
+    assert.equal(await h.balance(h.accounts.B.address), before + 100n - refund.fee);
+    assert.equal(await h.balance(), 0n);
+
+    const project = await h.read("getProject", [id]);
+    assert.equal(project.status, 4n);
+    assert.equal(project.escrowBalance, 0n);
+    assert.equal(await h.read("refunded", [id, h.address("B")]), true);
+    await h.send("B", "claimExpiredRefund", [id], { revert: "No refund available" });
+    await h.send("B", "approveMilestone", [id, 0], { revert: "Project not successful" });
+    await h.send("A", "withdrawMilestone", [id, 0], { revert: "Project not successful" });
+  });
+
+  test(`${profile.name}: expiry after a stage payout refunds only the remaining escrow`, async () => {
+    const h = await localChain(artifacts);
+    const timeout = await h.read("APPROVAL_TIMEOUT");
+    const id = await h.create({ target: 100n });
+    await h.send("B", "contribute", [id], { value: 100n });
+    await h.send("A", "submitEvidence", evidence(id, 0));
+    await h.send("B", "approveMilestone", [id, 0]);
+    await payout(h, id, 0, 40n);
+    await h.send("A", "submitEvidence", evidence(id, 1));
+    const submittedAt = h.now();
+    h.at(submittedAt + timeout);
+    const refund = await h.send("B", "claimExpiredRefund", [id]);
+    assert.equal(event(refund, "RefundClaimed").amount, 60n, "Already-paid 40% must stay with the creator");
+    assert.equal((await h.read("getProject", [id])).escrowBalance, 0n);
+    assert.equal((await h.read("getProject", [id])).status, 4n);
+    assert.equal(await h.balance(), 0n);
+  });
+
+  test(`${profile.name}: an approved milestone cannot be refunded`, async () => {
+    const h = await localChain(artifacts);
+    const timeout = await h.read("APPROVAL_TIMEOUT");
+    const id = await h.create({ target: 100n });
+    await h.send("B", "contribute", [id], { value: 100n });
+    await h.send("A", "submitEvidence", evidence(id, 0));
+    await h.send("B", "approveMilestone", [id, 0]);
+    h.at(h.now() + timeout);
+    await h.send("B", "claimExpiredRefund", [id], { revert: "Milestone already approved" });
+  });
+
+  test(`${profile.name}: submission timeout protects backers when the creator never submits`, async () => {
+    const h = await localChain(artifacts);
+    const timeout = await h.read("SUBMISSION_TIMEOUT");
+    const id = await h.create({ target: 100n });
+    await h.send("B", "contribute", [id], { value: 100n });
+    const successfulAt = h.now();
+    await h.send("B", "claimExpiredRefund", [id], { revert: "Submission window still open" });
+    h.at(successfulAt + timeout);
+    const refund = await h.send("B", "claimExpiredRefund", [id]);
+    assert.equal(event(refund, "RefundClaimed").amount, 100n);
+    assert.equal((await h.read("getProject", [id])).status, 4n);
+    assert.equal(await h.balance(), 0n);
+  });
+
+  test(`${profile.name}: a zero first-stage payout skips the ETH transfer`, async () => {
+    const h = await localChain(artifacts);
+    const receiver = await h.deploy("A", artifacts.receiver, [h.fund.address.toString()]);
+    await h.send("A", "create", [1n, h.now() + 100n], { target: receiver });
+    const id = 0n;
+    await h.send("B", "contribute", [id], { value: 1n });
+    await h.send("A", "evidence", [id], { target: receiver });
+    await h.send("B", "approveMilestone", [id, 0]);
+
+    // floor(1 * 40 / 100) = 0, and the receiver rejects ETH: success proves the call was skipped.
+    await h.send("A", "withdraw", [id], { target: receiver });
+    const stage0 = await h.read("getMilestone", [id, 0]);
+    assert.equal(stage0.withdrawn, true);
+    assert.equal(stage0.withdrawnAmount, 0n);
+    assert.equal((await h.read("getProject", [id])).currentMilestone, 1n);
+    assert.equal((await h.read("getProject", [id])).escrowBalance, 1n);
+    assert.equal(await h.balance(receiver.address), 0n);
+
+    // The second stage pays the remaining 1 wei, so the same rejecting receiver must fail.
+    await h.send("A", "evidenceFor", [id, 1], { target: receiver });
+    await h.send("B", "approveMilestone", [id, 1]);
+    await h.send("A", "withdrawFor", [id, 1], { target: receiver, revert: "ETH transfer failed" });
+    assert.equal((await h.read("getMilestone", [id, 1])).withdrawn, false);
+    assert.equal((await h.read("getProject", [id])).escrowBalance, 1n);
+  });
+
+  test(`${profile.name}: timeouts come from the constructor, so a demo can expire quickly`, async () => {
+    const h = await localChain(artifacts, { approvalTimeout: 60n, submissionTimeout: 120n });
+    assert.equal(await h.read("APPROVAL_TIMEOUT"), 60n);
+    assert.equal(await h.read("SUBMISSION_TIMEOUT"), 120n);
+
+    const id = await h.create({ target: 1n });
+    await h.send("B", "contribute", [id], { value: 1n });
+    await h.send("A", "submitEvidence", evidence(id, 0));
+    await h.send("B", "claimExpiredRefund", [id], { revert: "Approval window still open" });
+    h.at(h.now() + 60n);
+    const refund = await h.send("B", "claimExpiredRefund", [id]);
+    assert.equal(event(refund, "RefundClaimed").amount, 1n);
+    assert.equal((await h.read("getProject", [id])).status, 4n);
   });
 }

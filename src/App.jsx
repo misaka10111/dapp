@@ -24,8 +24,8 @@ import {
   shortAddress,
 } from "./utils.js";
 
-const STATUS = ["Funding", "Successful", "Failed", "Completed"];
-const TONE = ["funding", "successful", "failed", "completed"];
+const STATUS = ["Funding", "Successful", "Failed", "Completed", "Expired"];
+const TONE = ["funding", "successful", "failed", "completed", "expired"];
 const PAGE_SIZE = 6;
 
 const FILTERS = [
@@ -66,7 +66,19 @@ function stageText(project) {
   if (Number(project.status) === 1) return `Milestone ${stage + 1} of 2`;
   if (Number(project.status) === 3) return "Both milestones released";
   if (Number(project.status) === 2) return "Funding failed · refunds open";
+  if (Number(project.status) === 4) return "Approval expired · refunds open";
   return `Target ${eth(project.target)} ETH`;
+}
+
+// Short form for deadline hints: "3d 4h" / "5h 12m" / "9m".
+function remainingText(seconds) {
+  const left = Math.max(0, Math.floor(Number(seconds)));
+  const days = Math.floor(left / 86400);
+  const hours = Math.floor((left % 86400) / 3600);
+  const minutes = Math.floor((left % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
 
 function Progress({ value, label, tone }) {
@@ -317,12 +329,17 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
     contribution,
     refunded,
     approvals,
+    timeouts,
     id,
   } = data;
   const [error, setError] = useState("");
   const isCreator =
     account && account.toLowerCase() === p.creator.toLowerCase();
   const expired = p.status === 0n && now >= Number(p.deadline);
+  const remainingTarget = p.target - p.totalRaised;
+  // Mirrors claimExpiredRefund(): proportional to the contribution, capped by the escrow.
+  const refundShare =
+    p.totalRaised > 0n ? (contribution * p.escrowBalance) / p.totalRaised : 0n;
 
   async function contribute(event) {
     event.preventDefault();
@@ -445,12 +462,12 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
         ) : (
           <form className="contribute-form" onSubmit={contribute}>
             <label>
-              Support this project · Sepolia ETH
+              Support this project · {eth(remainingTarget)} ETH still needed
               <input
                 name="amount"
                 aria-label="Contribution ETH"
                 inputMode="decimal"
-                placeholder="0.01"
+                placeholder={eth(remainingTarget)}
                 required
                 disabled={!ready || busy}
               />
@@ -458,6 +475,11 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
             <button className="primary" disabled={!ready || busy}>
               Contribute ↗
             </button>
+            <p className="form-note tight">
+              Contributions are capped at the target: anything above the
+              remaining {eth(remainingTarget)} ETH is returned in the same
+              transaction.
+            </p>
           </form>
         ))}
 
@@ -500,8 +522,24 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
       </div>
 
       {milestones.map((m, index) => {
-        const current = p.status === 1n && BigInt(index) === p.currentMilestone;
+        const isCurrentStage = BigInt(index) === p.currentMilestone;
+        const current = p.status === 1n && isCurrentStage;
         const projected = p.status === 0n;
+        const approvalLeft =
+          m.submitted && !m.approved && timeouts?.approval > 0n
+            ? Number(m.submittedAt + timeouts.approval) - now
+            : null;
+        const submitLeft =
+          !m.submitted && p.status === 1n && timeouts?.submission > 0n
+            ? Number(p.successfulAt + timeouts.submission) - now
+            : null;
+        const canExpireRefund =
+          isCurrentStage &&
+          contribution > 0n &&
+          !refunded &&
+          (p.status === 1n || p.status === 4n) &&
+          ((approvalLeft !== null && approvalLeft <= 0) ||
+            (submitLeft !== null && submitLeft <= 0));
         const stateLabel = m.withdrawn
           ? "Released"
           : m.approved
@@ -590,6 +628,18 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
               Needs more than 50% of contributed weight. Exactly 50% fails.
             </p>
 
+            {(approvalLeft !== null || submitLeft !== null) && (
+              <p className="form-note tight">
+                {approvalLeft !== null
+                  ? approvalLeft > 0
+                    ? `Approval closes in ${remainingText(approvalLeft)}.`
+                    : "Approval window closed. Backers can reclaim the remaining escrow."
+                  : submitLeft > 0
+                    ? `Creator has ${remainingText(submitLeft)} to submit evidence.`
+                    : "No evidence submitted in time. Backers can reclaim the remaining escrow."}
+              </p>
+            )}
+
             <div className="milestone-actions">
               {current && !m.submitted && isCreator && (
                 <form style={{ width: "100%" }} onSubmit={(e) => evidence(e, index)}>
@@ -643,7 +693,22 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
                     )
                   }
                 >
-                  Withdraw · {eth(budget(p.totalRaised, index))} ETH ↗
+                  {budget(p.totalRaised, index) === 0n
+                    ? "Withdraw · 0 ETH, advances the stage"
+                    : `Withdraw · ${eth(budget(p.totalRaised, index))} ETH ↗`}
+                </button>
+              )}
+              {canExpireRefund && (
+                <button
+                  className="primary"
+                  disabled={!ready || busy}
+                  onClick={() =>
+                    transact("Claim expired refund", (c) =>
+                      c.claimExpiredRefund(id),
+                    )
+                  }
+                >
+                  Claim refund · {eth(refundShare)} ETH
                 </button>
               )}
             </div>
@@ -660,9 +725,10 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
         </p>
       )}
       <p className="risk-note">
-        Prototype limitation: after successful funding, funds may remain locked
-        indefinitely if backers do not approve. There is no voting deadline or
-        partial refund.
+        Prototype limits: contributions are capped at the target and any excess
+        is returned in the same transaction. If evidence is not approved within 7
+        days, or the creator never submits it, backers can reclaim their share of
+        the remaining escrow.
       </p>
     </section>
   );
@@ -745,7 +811,7 @@ export default function App() {
         selected === null
           ? null
           : (async () => {
-              const [project, first, second, contribution, refunded, a0, a1] =
+              const [project, first, second, contribution, refunded, a0, a1, approvalTimeout, submissionTimeout] =
                 await Promise.all([
                   contract.getProject(selected, snapshot),
                   contract.getMilestone(selected, 0, snapshot),
@@ -762,6 +828,9 @@ export default function App() {
                   account
                     ? contract.hasApproved(selected, 1, account, snapshot)
                     : false,
+                  // 0n means the deployed contract predates v2, so expiry hints stay hidden.
+                  contract.APPROVAL_TIMEOUT(snapshot).catch(() => 0n),
+                  contract.SUBMISSION_TIMEOUT(snapshot).catch(() => 0n),
                 ]);
               return {
                 id: selected,
@@ -770,6 +839,7 @@ export default function App() {
                 contribution,
                 refunded,
                 approvals: [a0, a1],
+                timeouts: { approval: approvalTimeout, submission: submissionTimeout },
               };
             })(),
       ]);

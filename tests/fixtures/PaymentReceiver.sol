@@ -15,7 +15,9 @@ contract PaymentReceiver {
     }
     function contribute(uint256 projectId) external payable { fund.contribute{value: msg.value}(projectId); }
     function evidence(uint256 projectId) external { fund.submitEvidence(projectId, 0, "Delivered", "https://example.com/demo"); }
+    function evidenceFor(uint256 projectId, uint8 milestone) external { fund.submitEvidence(projectId, milestone, "Delivered", "https://example.com/demo"); }
     function withdraw(uint256 projectId) external { fund.withdrawMilestone(projectId, 0); }
+    function withdrawFor(uint256 projectId, uint8 milestone) external { fund.withdrawMilestone(projectId, milestone); }
     function refund(uint256 projectId) external { fund.claimRefund(projectId); }
     function allowPayments() external { rejectPayments = false; }
     receive() external payable { require(!rejectPayments, "Receiver rejected ETH"); }
