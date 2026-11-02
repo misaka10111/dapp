@@ -291,4 +291,19 @@ for (const profile of profiles) {
     assert.equal((await h.read("getMilestone", [id, 1])).withdrawn, false);
     assert.equal((await h.read("getProject", [id])).escrowBalance, 1n);
   });
+
+  test(`${profile.name}: timeouts come from the constructor, so a demo can expire quickly`, async () => {
+    const h = await localChain(artifacts, { approvalTimeout: 60n, submissionTimeout: 120n });
+    assert.equal(await h.read("APPROVAL_TIMEOUT"), 60n);
+    assert.equal(await h.read("SUBMISSION_TIMEOUT"), 120n);
+
+    const id = await h.create({ target: 1n });
+    await h.send("B", "contribute", [id], { value: 1n });
+    await h.send("A", "submitEvidence", evidence(id, 0));
+    await h.send("B", "claimExpiredRefund", [id], { revert: "Approval window still open" });
+    h.at(h.now() + 60n);
+    const refund = await h.send("B", "claimExpiredRefund", [id]);
+    assert.equal(event(refund, "RefundClaimed").amount, 1n);
+    assert.equal((await h.read("getProject", [id])).status, 4n);
+  });
 }

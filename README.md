@@ -82,7 +82,7 @@ npm run dev  # 安装完成后，启动网页
 3. 在 Solidity Compiler 中选择 **0.8.24**，开启 Optimization，runs 设为 **200**，EVM Version 选择 **paris**，不启用 via-IR，点击 Compile。
 4. 准备两个不同的 MetaMask 账户：**A 为发起人，B 为支持者**。选择 **Ethereum Sepolia**。A 需要测试 ETH 支付 gas；B 需要 **0.01 测试 ETH，另外预留 gas**。
 5. Remix 的 Deploy & Run 中，Environment 选择 **Browser Extension / MetaMask**，旧版可能叫 Injected Provider。核对网络是 Sepolia、账户是 A。
-6. 合约选择 **MilestoneFund**，Value 为 **0**，不需要构造参数。点击 Deploy，在 MetaMask 确认，等待成功。
+6. 合约选择 **MilestoneFund**，Value 为 **0**。v2 有**两个构造参数**，按顺序填：`approvalTimeout`、`submissionTimeout`（单位秒，取值 1 到 2592000 即 30 天）。正式使用填 `604800` 和 `604800`（7 天）；如果要现场演示超时退款，另部署一个填入 `600` 和 `600`（10 分钟）的演示实例。点击 Deploy，在 MetaMask 确认，等待成功。
 7. 复制 Deployed Contracts 中的**合约地址**，连同部署交易哈希发给组员。不要把钱包地址或交易哈希当成合约地址。
 
 也可以先用 Remix VM 的虚拟账户检查合约。**Remix VM 的地址不能填到这个 Sepolia 前端中**，网页交易需要真正部署在 Sepolia。

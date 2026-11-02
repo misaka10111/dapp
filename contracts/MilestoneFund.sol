@@ -34,9 +34,11 @@ contract MilestoneFund {
     }
 
     /// @notice How long backers have to approve after evidence is submitted.
-    uint256 public constant APPROVAL_TIMEOUT = 7 days;
+    /// @dev Fixed at deployment and immutable afterwards, so the rules cannot be
+    /// changed later by anyone. A short value is useful for demos.
+    uint256 public immutable APPROVAL_TIMEOUT;
     /// @notice How long the creator has to submit evidence after funding succeeds.
-    uint256 public constant SUBMISSION_TIMEOUT = 7 days;
+    uint256 public immutable SUBMISSION_TIMEOUT;
 
     uint256 public projectCount;
     mapping(uint256 => Project) private projects;
@@ -69,6 +71,15 @@ contract MilestoneFund {
         entered = true;
         _;
         entered = false;
+    }
+
+    /// @param approvalTimeout seconds backers have to approve submitted evidence
+    /// @param submissionTimeout seconds the creator has to submit evidence
+    constructor(uint256 approvalTimeout, uint256 submissionTimeout) {
+        require(approvalTimeout > 0 && approvalTimeout <= 30 days, "Invalid approval timeout");
+        require(submissionTimeout > 0 && submissionTimeout <= 30 days, "Invalid submission timeout");
+        APPROVAL_TIMEOUT = approvalTimeout;
+        SUBMISSION_TIMEOUT = submissionTimeout;
     }
 
     function createProject(
