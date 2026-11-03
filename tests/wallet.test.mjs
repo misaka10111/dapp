@@ -11,12 +11,14 @@ import {
   browserProvider,
   checkedContract,
   injectedWallet,
+  readExpiredRefundAmount,
   readProvider,
   resolveConfig,
   switchToSepolia,
 } from "../src/contract.js";
 import { errorMessage } from "../src/utils.js";
 import {
+  DEFAULT_ACCOUNT,
   MAINNET_CHAIN_ID_HEX,
   SEPOLIA_CHAIN_ID_HEX,
   createWallet,
@@ -218,6 +220,50 @@ describe("checkedContract", () => {
     };
     await checkedContract(provider, resolveConfig("0x0000000000000000000000000000000000000001", ""));
     assert.equal(probed, "0x0000000000000000000000000000000000000001");
+  });
+});
+
+describe("readExpiredRefundAmount", () => {
+  const snapshot = { blockTag: 123 };
+
+  test("reads the contract quote for the selected project and account at the snapshot block", async () => {
+    const contract = {
+      async getExpiredRefundAmount(id, account, overrides) {
+        assert.equal(id, 7n);
+        assert.equal(account, DEFAULT_ACCOUNT);
+        assert.equal(overrides, snapshot);
+        return 36n;
+      },
+    };
+    assert.equal(await readExpiredRefundAmount(contract, 7n, DEFAULT_ACCOUNT, snapshot), 36n);
+  });
+
+  test("handles older deployments whose quote selector returns no data", async () => {
+    for (const error of [
+      { code: "CALL_EXCEPTION", data: "0x" },
+      { code: "CALL_EXCEPTION", data: null },
+      { code: "BAD_DATA", value: "0x" },
+    ]) {
+      const contract = {
+        async getExpiredRefundAmount() { throw error; },
+      };
+      assert.equal(await readExpiredRefundAmount(contract, 7n, DEFAULT_ACCOUNT, snapshot), null);
+    }
+  });
+
+  test("propagates RPC failures and contract reverts with a reason", async () => {
+    for (const error of [
+      { code: "TIMEOUT" },
+      { code: "CALL_EXCEPTION", data: "0x08c379a0" },
+    ]) {
+      const contract = {
+        async getExpiredRefundAmount() { throw error; },
+      };
+      await assert.rejects(
+        readExpiredRefundAmount(contract, 7n, DEFAULT_ACCOUNT, snapshot),
+        (caught) => caught === error,
+      );
+    }
   });
 });
 

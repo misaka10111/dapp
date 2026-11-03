@@ -10,6 +10,7 @@ import {
   browserProvider,
   checkedContract,
   injectedWallet,
+  readExpiredRefundAmount,
   readProvider,
   switchToSepolia,
 } from "./contract.js";
@@ -66,7 +67,7 @@ function stageText(project) {
   if (Number(project.status) === 1) return `Milestone ${stage + 1} of 2`;
   if (Number(project.status) === 3) return "Both milestones released";
   if (Number(project.status) === 2) return "Funding failed · refunds open";
-  if (Number(project.status) === 4) return "Approval expired · refunds open";
+  if (Number(project.status) === 4) return "Milestone expired · refunds open";
   return `Target ${eth(project.target)} ETH`;
 }
 
@@ -330,6 +331,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
     refunded,
     approvals,
     timeouts,
+    expiredRefundAmount,
     id,
   } = data;
   const [error, setError] = useState("");
@@ -337,9 +339,6 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
     account && account.toLowerCase() === p.creator.toLowerCase();
   const expired = p.status === 0n && now >= Number(p.deadline);
   const remainingTarget = p.target - p.totalRaised;
-  // Mirrors claimExpiredRefund(): proportional to the contribution, capped by the escrow.
-  const refundShare =
-    p.totalRaised > 0n ? (contribution * p.escrowBalance) / p.totalRaised : 0n;
 
   async function contribute(event) {
     event.preventDefault();
@@ -448,7 +447,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
 
       {refunded && (
         <p className="success-note">
-          ✓ Your original contribution has been refunded.
+          ✓ Your refund has been paid.
         </p>
       )}
 
@@ -530,14 +529,19 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
             ? Number(m.submittedAt + timeouts.approval) - now
             : null;
         const submitLeft =
-          !m.submitted && p.status === 1n && timeouts?.submission > 0n
+          isCurrentStage &&
+          !m.submitted &&
+          (p.status === 1n || p.status === 4n) &&
+          timeouts?.submission > 0n
             ? Number(p.successfulAt + timeouts.submission) - now
             : null;
         const canExpireRefund =
+          isCurrentStage && (expiredRefundAmount ?? 0n) > 0n;
+        const missingRefundQuote =
           isCurrentStage &&
           contribution > 0n &&
           !refunded &&
-          (p.status === 1n || p.status === 4n) &&
+          expiredRefundAmount === null &&
           ((approvalLeft !== null && approvalLeft <= 0) ||
             (submitLeft !== null && submitLeft <= 0));
         const stateLabel = m.withdrawn
@@ -698,6 +702,11 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
                     : `Withdraw · ${eth(budget(p.totalRaised, index))} ETH ↗`}
                 </button>
               )}
+              {missingRefundQuote && (
+                <p className="form-note">
+                  This deployment does not provide a refund quote.
+                </p>
+              )}
               {canExpireRefund && (
                 <button
                   className="primary"
@@ -708,7 +717,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
                     )
                   }
                 >
-                  Claim refund · {eth(refundShare)} ETH
+                  Claim refund · {eth(expiredRefundAmount)} ETH
                 </button>
               )}
             </div>
@@ -726,9 +735,9 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
       )}
       <p className="risk-note">
         Prototype limits: contributions are capped at the target and any excess
-        is returned in the same transaction. If evidence is not approved within 7
-        days, or the creator never submits it, backers can reclaim their share of
-        the remaining escrow.
+        is returned in the same transaction. If evidence is not submitted or
+        approved before its deadline, backers can reclaim their share of the
+        remaining escrow.
       </p>
     </section>
   );
@@ -811,27 +820,40 @@ export default function App() {
         selected === null
           ? null
           : (async () => {
-              const [project, first, second, contribution, refunded, a0, a1, approvalTimeout, submissionTimeout] =
-                await Promise.all([
-                  contract.getProject(selected, snapshot),
-                  contract.getMilestone(selected, 0, snapshot),
-                  contract.getMilestone(selected, 1, snapshot),
-                  account
-                    ? contract.contributions(selected, account, snapshot)
-                    : 0n,
-                  account
-                    ? contract.refunded(selected, account, snapshot)
-                    : false,
-                  account
-                    ? contract.hasApproved(selected, 0, account, snapshot)
-                    : false,
-                  account
-                    ? contract.hasApproved(selected, 1, account, snapshot)
-                    : false,
-                  // 0n means the deployed contract predates v2, so expiry hints stay hidden.
-                  contract.APPROVAL_TIMEOUT(snapshot).catch(() => 0n),
-                  contract.SUBMISSION_TIMEOUT(snapshot).catch(() => 0n),
-                ]);
+              const [
+                project,
+                first,
+                second,
+                contribution,
+                refunded,
+                a0,
+                a1,
+                approvalTimeout,
+                submissionTimeout,
+                expiredRefundAmount,
+              ] = await Promise.all([
+                contract.getProject(selected, snapshot),
+                contract.getMilestone(selected, 0, snapshot),
+                contract.getMilestone(selected, 1, snapshot),
+                account
+                  ? contract.contributions(selected, account, snapshot)
+                  : 0n,
+                account
+                  ? contract.refunded(selected, account, snapshot)
+                  : false,
+                account
+                  ? contract.hasApproved(selected, 0, account, snapshot)
+                  : false,
+                account
+                  ? contract.hasApproved(selected, 1, account, snapshot)
+                  : false,
+                // 0n means the deployed contract predates v2, so expiry hints stay hidden.
+                contract.APPROVAL_TIMEOUT(snapshot).catch(() => 0n),
+                contract.SUBMISSION_TIMEOUT(snapshot).catch(() => 0n),
+                account
+                  ? readExpiredRefundAmount(contract, selected, account, snapshot)
+                  : 0n,
+              ]);
               return {
                 id: selected,
                 project: project.toObject(),
@@ -840,6 +862,7 @@ export default function App() {
                 refunded,
                 approvals: [a0, a1],
                 timeouts: { approval: approvalTimeout, submission: submissionTimeout },
+                expiredRefundAmount,
               };
             })(),
       ]);
