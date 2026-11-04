@@ -11,6 +11,7 @@ import {
   checkedContract,
   injectedWallet,
   readExpiredRefundAmount,
+  readMilestoneWindow,
   readProvider,
   switchToSepolia,
 } from "./contract.js";
@@ -331,6 +332,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
     refunded,
     approvals,
     timeouts,
+    milestoneWindow,
     expiredRefundAmount,
     id,
   } = data;
@@ -524,17 +526,18 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
         const isCurrentStage = BigInt(index) === p.currentMilestone;
         const current = p.status === 1n && isCurrentStage;
         const projected = p.status === 0n;
-        const approvalLeft =
-          m.submitted && !m.approved && timeouts?.approval > 0n
-            ? Number(m.submittedAt + timeouts.approval) - now
-            : null;
-        const submitLeft =
-          isCurrentStage &&
-          !m.submitted &&
-          (p.status === 1n || p.status === 4n) &&
-          timeouts?.submission > 0n
-            ? Number(p.successfulAt + timeouts.submission) - now
-            : null;
+        const hasPendingWindow =
+          isCurrentStage && (p.status === 1n || p.status === 4n) && !m.approved;
+        const legacyTimeout = m.submitted ? timeouts?.approval : timeouts?.submission;
+        const legacyOpenedAt = m.submitted ? m.submittedAt : p.successfulAt;
+        const deadline = hasPendingWindow
+          ? milestoneWindow?.deadline ?? (legacyTimeout > 0n ? legacyOpenedAt + legacyTimeout : 0n)
+          : 0n;
+        const secondsLeft = deadline > 0n ? Number(deadline) - now : null;
+        const actionWindowClosed = hasPendingWindow && milestoneWindow?.open === false;
+        const showWindowClosed = milestoneWindow
+          ? actionWindowClosed
+          : secondsLeft !== null && secondsLeft <= 0;
         const canExpireRefund =
           isCurrentStage && (expiredRefundAmount ?? 0n) > 0n;
         const missingRefundQuote =
@@ -542,8 +545,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
           contribution > 0n &&
           !refunded &&
           expiredRefundAmount === null &&
-          ((approvalLeft !== null && approvalLeft <= 0) ||
-            (submitLeft !== null && submitLeft <= 0));
+          showWindowClosed;
         const stateLabel = m.withdrawn
           ? "Released"
           : m.approved
@@ -632,22 +634,22 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
               Needs more than 50% of contributed weight. Exactly 50% fails.
             </p>
 
-            {(approvalLeft !== null || submitLeft !== null) && (
+            {secondsLeft !== null && (
               <p className="form-note tight">
-                {approvalLeft !== null
-                  ? approvalLeft > 0
-                    ? `Approval closes in ${remainingText(approvalLeft)}.`
-                    : "Approval window closed. Backers can reclaim the remaining escrow."
-                  : submitLeft > 0
-                    ? `Creator has ${remainingText(submitLeft)} to submit evidence.`
-                    : "No evidence submitted in time. Backers can reclaim the remaining escrow."}
+                {m.submitted
+                  ? showWindowClosed
+                    ? "Approval window closed. Backers can reclaim the remaining escrow."
+                    : `Approval closes in ${remainingText(secondsLeft)}.`
+                  : showWindowClosed
+                    ? "No evidence submitted in time. Backers can reclaim the remaining escrow."
+                    : `Creator has ${remainingText(secondsLeft)} to submit evidence.`}
               </p>
             )}
 
             <div className="milestone-actions">
               {current && !m.submitted && isCreator && (
                 <form style={{ width: "100%" }} onSubmit={(e) => evidence(e, index)}>
-                  <fieldset disabled={!ready || busy}>
+                  <fieldset disabled={!ready || busy || actionWindowClosed}>
                     <label>
                       What did you deliver?
                       <textarea
@@ -675,7 +677,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
               {current && m.submitted && !m.approved && contribution > 0n && (
                 <button
                   className="primary"
-                  disabled={!ready || busy || approvals[index]}
+                  disabled={!ready || busy || approvals[index] || actionWindowClosed}
                   onClick={() =>
                     transact(`Approve milestone ${index + 1}`, (c) =>
                       c.approveMilestone(id, index),
@@ -828,8 +830,7 @@ export default function App() {
                 refunded,
                 a0,
                 a1,
-                approvalTimeout,
-                submissionTimeout,
+                milestoneWindow,
                 expiredRefundAmount,
               ] = await Promise.all([
                 contract.getProject(selected, snapshot),
@@ -847,13 +848,19 @@ export default function App() {
                 account
                   ? contract.hasApproved(selected, 1, account, snapshot)
                   : false,
-                // 0n means the deployed contract predates v2, so expiry hints stay hidden.
-                contract.APPROVAL_TIMEOUT(snapshot).catch(() => 0n),
-                contract.SUBMISSION_TIMEOUT(snapshot).catch(() => 0n),
+                readMilestoneWindow(contract, selected, snapshot),
                 account
                   ? readExpiredRefundAmount(contract, selected, account, snapshot)
                   : 0n,
               ]);
+              let timeouts = null;
+              if (milestoneWindow === null) {
+                const [approval, submission] = await Promise.all([
+                  contract.APPROVAL_TIMEOUT(snapshot).catch(() => 0n),
+                  contract.SUBMISSION_TIMEOUT(snapshot).catch(() => 0n),
+                ]);
+                timeouts = { approval, submission };
+              }
               return {
                 id: selected,
                 project: project.toObject(),
@@ -861,7 +868,8 @@ export default function App() {
                 contribution,
                 refunded,
                 approvals: [a0, a1],
-                timeouts: { approval: approvalTimeout, submission: submissionTimeout },
+                timeouts,
+                milestoneWindow,
                 expiredRefundAmount,
               };
             })(),

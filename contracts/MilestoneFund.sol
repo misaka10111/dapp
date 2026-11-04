@@ -37,7 +37,7 @@ contract MilestoneFund {
     /// @dev Fixed at deployment and immutable afterwards, so the rules cannot be
     /// changed later by anyone. A short value is useful for demos.
     uint256 public immutable APPROVAL_TIMEOUT;
-    /// @notice How long the creator has to submit evidence after funding succeeds.
+    /// @notice How long the creator has to submit evidence after each milestone opens.
     uint256 public immutable SUBMISSION_TIMEOUT;
 
     uint256 public projectCount;
@@ -48,6 +48,7 @@ contract MilestoneFund {
     mapping(uint256 => mapping(address => bool)) public refunded;
     bool private entered;
     mapping(uint256 => uint256) private expiredRefundPools;
+    mapping(uint256 => uint256) private secondMilestoneOpenedAt;
 
     event ProjectCreated(uint256 indexed projectId, address indexed creator, uint256 target, uint256 deadline);
     event ContributionReceived(uint256 indexed projectId, address indexed backer, uint256 amount);
@@ -150,6 +151,7 @@ contract MilestoneFund {
         require(milestone < 2 && milestone == p.currentMilestone, "Wrong milestone");
         Milestone storage m = milestones[projectId][milestone];
         require(!m.submitted, "Evidence already submitted");
+        require(block.timestamp < _milestoneDeadline(projectId, p, m), "Submission window closed");
         require(bytes(evidence).length > 0 && bytes(evidence).length <= 4000, "Invalid evidence");
         require(bytes(evidenceUrl).length > 0 && bytes(evidenceUrl).length <= 1000, "Invalid evidence URL");
         m.evidence = evidence;
@@ -165,6 +167,7 @@ contract MilestoneFund {
         require(milestone < 2 && milestone == p.currentMilestone, "Wrong milestone");
         Milestone storage m = milestones[projectId][milestone];
         require(m.submitted && !m.approved, "Approval not open");
+        require(block.timestamp < _milestoneDeadline(projectId, p, m), "Approval window closed");
         uint256 weight = contributions[projectId][msg.sender];
         require(weight > 0, "Backers only");
         require(!hasApproved[projectId][milestone][msg.sender], "Already approved");
@@ -194,7 +197,11 @@ contract MilestoneFund {
         m.withdrawnAmount = amount;
         p.escrowBalance -= amount;
         p.currentMilestone++;
-        if (milestone == 1) p.status = ProjectStatus.Completed;
+        if (milestone == 0) {
+            secondMilestoneOpenedAt[projectId] = block.timestamp;
+        } else {
+            p.status = ProjectStatus.Completed;
+        }
         emit FundsWithdrawn(projectId, milestone, amount);
         if (milestone == 1) emit ProjectCompleted(projectId);
         // All accounting is committed before the external call. Failure rolls it back.
@@ -248,17 +255,36 @@ contract MilestoneFund {
         return _expiredRefundAmount(projectId, p, backer);
     }
 
+    /// @notice The current submission or approval deadline and whether the window is open.
+    /// @dev A zero deadline means there is no pending submission or approval.
+    function getMilestoneWindow(uint256 projectId)
+        external view validProject(projectId) returns (uint256 deadline, bool open)
+    {
+        Project storage p = projects[projectId];
+        if (p.status != ProjectStatus.Successful && p.status != ProjectStatus.Expired) return (0, false);
+        Milestone storage m = milestones[projectId][p.currentMilestone];
+        if (m.approved) return (0, false);
+        deadline = _milestoneDeadline(projectId, p, m);
+        open = block.timestamp < deadline;
+    }
+
     function _expiredRefundBlocker(uint256 projectId, Project storage p) private view returns (string memory) {
         if (p.status != ProjectStatus.Successful && p.status != ProjectStatus.Expired) return "Project not active";
         if (p.currentMilestone >= 2) return "Project completed";
         Milestone storage m = milestones[projectId][p.currentMilestone];
-        if (m.submitted) {
-            if (m.approved) return "Milestone already approved";
-            if (block.timestamp < m.submittedAt + APPROVAL_TIMEOUT) return "Approval window still open";
-        } else if (block.timestamp < p.successfulAt + SUBMISSION_TIMEOUT) {
-            return "Submission window still open";
+        if (m.approved) return "Milestone already approved";
+        if (block.timestamp < _milestoneDeadline(projectId, p, m)) {
+            return m.submitted ? "Approval window still open" : "Submission window still open";
         }
         return "";
+    }
+
+    function _milestoneDeadline(uint256 projectId, Project storage p, Milestone storage m)
+        private view returns (uint256)
+    {
+        if (m.submitted) return m.submittedAt + APPROVAL_TIMEOUT;
+        uint256 openedAt = p.currentMilestone == 0 ? p.successfulAt : secondMilestoneOpenedAt[projectId];
+        return openedAt + SUBMISSION_TIMEOUT;
     }
 
     function _expiredRefundAmount(uint256 projectId, Project storage p, address backer) private view returns (uint256) {

@@ -83,16 +83,11 @@ export async function checkedContract(provider, config = CONFIG) {
   return new Contract(getAddress(config.contractAddress), ABI, provider);
 }
 
-export async function readExpiredRefundAmount(
-  contract,
-  projectId,
-  account,
-  snapshot,
-) {
+async function readOptionalContractValue(read) {
   try {
-    return await contract.getExpiredRefundAmount(projectId, account, snapshot);
+    return await read();
   } catch (error) {
-    // Older deployments have no quote selector and return no data.
+    // Older deployments return no data for a selector they do not implement.
     if (
       (error?.code === "CALL_EXCEPTION" &&
         (error.data === "0x" || error.data === null)) ||
@@ -101,6 +96,18 @@ export async function readExpiredRefundAmount(
       return null;
     throw error;
   }
+}
+
+export function readExpiredRefundAmount(contract, projectId, account, snapshot) {
+  return readOptionalContractValue(() =>
+    contract.getExpiredRefundAmount(projectId, account, snapshot),
+  );
+}
+
+export function readMilestoneWindow(contract, projectId, snapshot) {
+  return readOptionalContractValue(() =>
+    contract.getMilestoneWindow(projectId, snapshot),
+  );
 }
 
 export async function switchToSepolia() {

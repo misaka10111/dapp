@@ -96,7 +96,8 @@ export async function localChain(
       isStatic: true, skipNonceIncrement: true,
     });
     assert.equal(result.execResult.exceptionError, undefined, `Read ${name} failed`);
-    return target.iface.decodeFunctionResult(name, bytesToHex(result.execResult.returnValue))[0];
+    const decoded = target.iface.decodeFunctionResult(name, bytesToHex(result.execResult.returnValue));
+    return decoded.length === 1 ? decoded[0] : decoded;
   }
   const balance = async (address = fund.address) => (await vm.stateManager.getAccount(address))?.balance ?? 0n;
   async function fundFingerprint() {

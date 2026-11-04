@@ -12,6 +12,7 @@ import {
   checkedContract,
   injectedWallet,
   readExpiredRefundAmount,
+  readMilestoneWindow,
   readProvider,
   resolveConfig,
   switchToSepolia,
@@ -264,6 +265,31 @@ describe("readExpiredRefundAmount", () => {
         (caught) => caught === error,
       );
     }
+  });
+});
+
+describe("readMilestoneWindow", () => {
+  const snapshot = { blockTag: 123 };
+
+  test("decodes the deadline and open flag from the same block snapshot", async () => {
+    const contract = new Contract(ADDRESS, ABI, {
+      async call(transaction) {
+        const id = contract.interface.decodeFunctionData("getMilestoneWindow", transaction.data)[0];
+        assert.equal(id, 7n);
+        assert.equal(transaction.blockTag, snapshot.blockTag);
+        return contract.interface.encodeFunctionResult("getMilestoneWindow", [150n, false]);
+      },
+    });
+    const window = await readMilestoneWindow(contract, 7n, snapshot);
+    assert.equal(window.deadline, 150n);
+    assert.equal(window.open, false);
+  });
+
+  test("returns null when an older deployment has no window getter", async () => {
+    const contract = new Contract(ADDRESS, ABI, {
+      async call() { return "0x"; },
+    });
+    assert.equal(await readMilestoneWindow(contract, 7n, snapshot), null);
   });
 });
 
