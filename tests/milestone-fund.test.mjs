@@ -15,6 +15,10 @@ async function payout(h, id, stage, amount) {
   assert.equal(await h.balance(h.accounts.A.address), before + amount - result.fee);
   return result;
 }
+async function assertWindow(h, id, deadline, open) {
+  const window = await h.read("getMilestoneWindow", [id]);
+  assert.deepEqual(window.toArray(), [deadline, open]);
+}
 
 for (const profile of profiles) {
   const artifacts = compileFixtures(profile);
@@ -27,12 +31,18 @@ for (const profile of profiles) {
     await h.send("B", "contribute", [id], { value: 10n });
     assert.equal(await h.read("contributions", [id, h.address("B")]), 50n);
     assert.equal((await h.read("getProject", [id])).status, 0n);
+    await assertWindow(h, id, 0n, false);
     const funded = await h.send("C", "contribute", [id], { value: 50n });
     assert.equal(event(funded, "FundingSuccessful").totalRaised, 100n);
+    const submissionDeadline = h.now() + await h.read("SUBMISSION_TIMEOUT");
+    await assertWindow(h, id, submissionDeadline, true);
     await h.send("D", "contribute", [id], { value: 1n, revert: "Funding closed" });
     await h.send("B", "approveMilestone", [id, 0], { revert: "Approval not open" });
     await h.send("B", "submitEvidence", evidence(id, 0), { revert: "Creator only" });
+    h.at(submissionDeadline - 1n);
     await h.send("A", "submitEvidence", evidence(id, 0));
+    const approvalDeadline = h.now() + await h.read("APPROVAL_TIMEOUT");
+    await assertWindow(h, id, approvalDeadline, true);
     await h.send("A", "submitEvidence", evidence(id, 0), { revert: "Evidence already submitted" });
     await h.send("D", "approveMilestone", [id, 0], { revert: "Backers only" });
     await h.send("B", "approveMilestone", [id, 0]);
@@ -42,8 +52,11 @@ for (const profile of profiles) {
     await h.send("B", "approveMilestone", [id, 0], { revert: "Already approved" });
     await h.send("A", "withdrawMilestone", [id, 0], { revert: "Milestone not withdrawable" });
     await h.send("A", "submitEvidence", evidence(id, 1), { revert: "Wrong milestone" });
+    h.at(approvalDeadline - 1n);
     const approved = await h.send("C", "approveMilestone", [id, 0]);
     assert.equal(event(approved, "MilestoneApproved").milestone, 0n);
+    await assertWindow(h, id, 0n, false);
+    h.at(approvalDeadline + 1n);
     await h.send("B", "withdrawMilestone", [id, 0], { revert: "Creator only" });
     await payout(h, id, 0, 40n);
     assert.equal(await h.balance(), 60n);
@@ -64,6 +77,7 @@ for (const profile of profiles) {
     assert.equal(project.escrowBalance, 0n);
     assert.equal(project.totalRaised, 100n);
     assert.equal(await h.balance(), 0n);
+    await assertWindow(h, id, 0n, false);
     await h.send("A", "withdrawMilestone", [id, 1], { revert: "Project not successful" });
     await h.send("B", "claimRefund", [id], { revert: "Project not failed" });
   });
@@ -206,11 +220,17 @@ for (const profile of profiles) {
         await h.send(backer, "contribute", [id], { value: contributions[backer] });
       }
       await h.send("A", "submitEvidence", evidence(id, 0));
+      const deadline = h.now() + timeout;
       const quote = (backer) => h.read("getExpiredRefundAmount", [id, h.address(backer)]);
+      h.at(deadline - 1n);
+      await h.send("C", "approveMilestone", [id, 0]);
+      await assertWindow(h, id, deadline, true);
       assert.equal(await quote(first), 0n);
       await h.send(first, "claimExpiredRefund", [id], { revert: "Approval window still open" });
 
-      h.at(h.now() + timeout);
+      h.at(deadline);
+      await assertWindow(h, id, deadline, false);
+      await h.send("B", "approveMilestone", [id, 0], { revert: "Approval window closed" });
       assert.equal(await quote("D"), 0n);
       await h.send("D", "claimExpiredRefund", [id], { revert: "No refund available" });
       assert.equal(await quote(second), contributions[second]);
@@ -247,10 +267,18 @@ for (const profile of profiles) {
     await h.send("C", "contribute", [id], { value: 43n });
     await h.send("A", "submitEvidence", evidence(id, 0));
     await h.send("B", "approveMilestone", [id, 0]);
+    h.at(h.now() + timeout + 1n);
     await payout(h, id, 0, 41n);
     assert.equal(await h.balance(), 62n);
 
-    h.at(h.now() + timeout);
+    const deadline = h.now() + timeout;
+    await assertWindow(h, id, deadline, true);
+    h.at(deadline - 1n);
+    assert.equal(await h.read("getExpiredRefundAmount", [id, h.address("B")]), 0n);
+    await h.send("B", "claimExpiredRefund", [id], { revert: "Submission window still open" });
+    h.at(deadline);
+    await assertWindow(h, id, deadline, false);
+    await h.send("A", "submitEvidence", evidence(id, 1), { revert: "Submission window closed" });
     for (const [backer, expected] of [["C", 25n], ["B", 36n]]) {
       assert.equal(await h.read("getExpiredRefundAmount", [id, h.address(backer)]), expected);
       const refund = await h.send(backer, "claimExpiredRefund", [id]);
@@ -302,9 +330,12 @@ for (const profile of profiles) {
     const successfulAt = h.now();
     await h.send("B", "claimExpiredRefund", [id], { revert: "Submission window still open" });
     h.at(successfulAt + timeout);
+    await assertWindow(h, id, successfulAt + timeout, false);
+    await h.send("A", "submitEvidence", evidence(id, 0), { revert: "Submission window closed" });
     const refund = await h.send("B", "claimExpiredRefund", [id]);
     assert.equal(event(refund, "RefundClaimed").amount, 100n);
     assert.equal((await h.read("getProject", [id])).status, 4n);
+    await assertWindow(h, id, successfulAt + timeout, false);
     assert.equal(await h.balance(), 0n);
   });
 
