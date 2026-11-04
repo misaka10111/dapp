@@ -19,6 +19,7 @@ contract PaymentReceiver {
     function withdraw(uint256 projectId) external { fund.withdrawMilestone(projectId, 0); }
     function withdrawFor(uint256 projectId, uint8 milestone) external { fund.withdrawMilestone(projectId, milestone); }
     function refund(uint256 projectId) external { fund.claimRefund(projectId); }
+    function expiredRefund(uint256 projectId) external { fund.claimExpiredRefund(projectId); }
     function allowPayments() external { rejectPayments = false; }
     receive() external payable { require(!rejectPayments, "Receiver rejected ETH"); }
 }

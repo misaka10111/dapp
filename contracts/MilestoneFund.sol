@@ -47,6 +47,7 @@ contract MilestoneFund {
     mapping(uint256 => mapping(uint8 => mapping(address => bool))) public hasApproved;
     mapping(uint256 => mapping(address => bool)) public refunded;
     bool private entered;
+    mapping(uint256 => uint256) private expiredRefundPools;
 
     event ProjectCreated(uint256 indexed projectId, address indexed creator, uint256 target, uint256 deadline);
     event ContributionReceived(uint256 indexed projectId, address indexed backer, uint256 amount);
@@ -218,34 +219,52 @@ contract MilestoneFund {
 
     /// @notice Reclaim a share of the remaining escrow when the current milestone times
     /// out: either backers did not approve submitted evidence, or the creator never
-    /// submitted it. The share is proportional to the original contribution, so money
-    /// already paid out for an earlier milestone is not refundable.
+    /// submitted it. Each share uses the same pool, frozen before the first refund.
     function claimExpiredRefund(uint256 projectId) external validProject(projectId) nonReentrant {
         Project storage p = projects[projectId];
-        require(
-            p.status == ProjectStatus.Successful || p.status == ProjectStatus.Expired,
-            "Project not active"
-        );
-        uint8 stage = p.currentMilestone;
-        require(stage < 2, "Project completed");
-        Milestone storage m = milestones[projectId][stage];
-        if (m.submitted) {
-            require(!m.approved, "Milestone already approved");
-            require(block.timestamp >= m.submittedAt + APPROVAL_TIMEOUT, "Approval window still open");
-        } else {
-            require(block.timestamp >= p.successfulAt + SUBMISSION_TIMEOUT, "Submission window still open");
-        }
-        uint256 amount = contributions[projectId][msg.sender] * p.escrowBalance / p.totalRaised;
-        require(amount > 0 && !refunded[projectId][msg.sender], "No refund available");
+        string memory blocker = _expiredRefundBlocker(projectId, p);
+        require(bytes(blocker).length == 0, blocker);
+        uint256 amount = _expiredRefundAmount(projectId, p, msg.sender);
+        require(amount > 0, "No refund available");
+
         refunded[projectId][msg.sender] = true;
-        p.escrowBalance -= amount;
         if (p.status == ProjectStatus.Successful) {
+            expiredRefundPools[projectId] = p.escrowBalance;
             p.status = ProjectStatus.Expired;
             emit ProjectExpired(projectId);
         }
+        p.escrowBalance -= amount;
         emit RefundClaimed(projectId, msg.sender, amount);
         (bool sent,) = payable(msg.sender).call{value: amount}("");
         require(sent, "ETH transfer failed");
+    }
+
+    /// @notice Returns the claimable expiry refund in wei, or zero if none is available.
+    function getExpiredRefundAmount(uint256 projectId, address backer)
+        external view validProject(projectId) returns (uint256)
+    {
+        Project storage p = projects[projectId];
+        if (bytes(_expiredRefundBlocker(projectId, p)).length != 0) return 0;
+        return _expiredRefundAmount(projectId, p, backer);
+    }
+
+    function _expiredRefundBlocker(uint256 projectId, Project storage p) private view returns (string memory) {
+        if (p.status != ProjectStatus.Successful && p.status != ProjectStatus.Expired) return "Project not active";
+        if (p.currentMilestone >= 2) return "Project completed";
+        Milestone storage m = milestones[projectId][p.currentMilestone];
+        if (m.submitted) {
+            if (m.approved) return "Milestone already approved";
+            if (block.timestamp < m.submittedAt + APPROVAL_TIMEOUT) return "Approval window still open";
+        } else if (block.timestamp < p.successfulAt + SUBMISSION_TIMEOUT) {
+            return "Submission window still open";
+        }
+        return "";
+    }
+
+    function _expiredRefundAmount(uint256 projectId, Project storage p, address backer) private view returns (uint256) {
+        if (refunded[projectId][backer]) return 0;
+        uint256 pool = p.status == ProjectStatus.Expired ? expiredRefundPools[projectId] : p.escrowBalance;
+        return contributions[projectId][backer] * pool / p.totalRaised;
     }
 
     function getProject(uint256 projectId) external view validProject(projectId) returns (Project memory) {

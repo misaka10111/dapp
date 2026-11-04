@@ -83,6 +83,26 @@ export async function checkedContract(provider, config = CONFIG) {
   return new Contract(getAddress(config.contractAddress), ABI, provider);
 }
 
+export async function readExpiredRefundAmount(
+  contract,
+  projectId,
+  account,
+  snapshot,
+) {
+  try {
+    return await contract.getExpiredRefundAmount(projectId, account, snapshot);
+  } catch (error) {
+    // Older deployments have no quote selector and return no data.
+    if (
+      (error?.code === "CALL_EXCEPTION" &&
+        (error.data === "0x" || error.data === null)) ||
+      (error?.code === "BAD_DATA" && error.value === "0x")
+    )
+      return null;
+    throw error;
+  }
+}
+
 export async function switchToSepolia() {
   const wallet = injectedWallet();
   if (!wallet) throw new Error("Install MetaMask, then reload this page.");
