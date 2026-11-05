@@ -14,6 +14,7 @@ import {
   readExpiredRefundAmount,
   readMilestoneWindow,
   readProvider,
+  refundAmountFromReceipt,
   resolveConfig,
   switchToSepolia,
 } from "../src/contract.js";
@@ -290,6 +291,30 @@ describe("readMilestoneWindow", () => {
       async call() { return "0x"; },
     });
     assert.equal(await readMilestoneWindow(contract, 7n, snapshot), null);
+  });
+});
+
+describe("refundAmountFromReceipt", () => {
+  test("uses the refund log emitted by the configured contract", () => {
+    const contract = new Contract(ADDRESS, ABI);
+    const foreignRefund = contract.interface.encodeEventLog(
+      "RefundClaimed", [7n, DEFAULT_ACCOUNT, 60n],
+    );
+    const actualRefund = contract.interface.encodeEventLog(
+      "RefundClaimed", [7n, DEFAULT_ACCOUNT, 36n],
+    );
+    const expired = contract.interface.encodeEventLog("ProjectExpired", [7n]);
+    const unrelated = [
+      { address: DEFAULT_ACCOUNT, ...foreignRefund },
+      { address: ADDRESS, ...expired },
+    ];
+    assert.equal(refundAmountFromReceipt(contract, { logs: unrelated }), null);
+    assert.equal(
+      refundAmountFromReceipt(contract, {
+        logs: [...unrelated, { address: ADDRESS.toLowerCase(), ...actualRefund }],
+      }),
+      36n,
+    );
   });
 });
 

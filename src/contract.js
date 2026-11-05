@@ -110,6 +110,15 @@ export function readMilestoneWindow(contract, projectId, snapshot) {
   );
 }
 
+export function refundAmountFromReceipt(contract, receipt) {
+  const address = contract.target.toLowerCase();
+  const event = contract.interface.getEvent("RefundClaimed");
+  const log = receipt.logs.find(
+    (entry) => entry.address.toLowerCase() === address && entry.topics[0] === event.topicHash,
+  );
+  return log ? contract.interface.parseLog(log).args.amount : null;
+}
+
 export async function switchToSepolia() {
   const wallet = injectedWallet();
   if (!wallet) throw new Error("Install MetaMask, then reload this page.");

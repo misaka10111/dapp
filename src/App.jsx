@@ -13,15 +13,19 @@ import {
   readExpiredRefundAmount,
   readMilestoneWindow,
   readProvider,
+  refundAmountFromReceipt,
   switchToSepolia,
 } from "./contract.js";
 import {
   budget,
+  deadlineView,
   errorMessage,
   eth,
+  expiryRefundState,
   matchesFilter,
   percent,
   positiveEth,
+  remainingText,
   safeUrl,
   shortAddress,
 } from "./utils.js";
@@ -46,20 +50,13 @@ function Badge({ status, expired }) {
   );
 }
 
-// Cards need a reason to act now, so show time left instead of a raw timestamp.
-function countdown(deadlineSec, now) {
-  const left = Number(deadlineSec) - now;
-  if (left <= 0) return { text: "Deadline passed", urgent: false, over: true };
-  const days = Math.floor(left / 86400);
-  const hours = Math.floor((left % 86400) / 3600);
-  const minutes = Math.floor((left % 3600) / 60);
-  const text =
-    days > 0
-      ? `${days}d ${hours}h left`
-      : hours > 0
-        ? `${hours}h ${minutes}m left`
-        : `${minutes}m left`;
-  return { text, urgent: left < 86400, over: false };
+function fundingDeadlineView(project, blockTimestamp, now) {
+  if (project.status !== 0n) return null;
+  return deadlineView(
+    project.deadline,
+    BigInt(blockTimestamp) < project.deadline,
+    now,
+  );
 }
 
 // Stage position is already on chain, so the card can show progress for free.
@@ -70,17 +67,6 @@ function stageText(project) {
   if (Number(project.status) === 2) return "Funding failed · refunds open";
   if (Number(project.status) === 4) return "Milestone expired · refunds open";
   return `Target ${eth(project.target)} ETH`;
-}
-
-// Short form for deadline hints: "3d 4h" / "5h 12m" / "9m".
-function remainingText(seconds) {
-  const left = Math.max(0, Math.floor(Number(seconds)));
-  const days = Math.floor(left / 86400);
-  const hours = Math.floor((left % 86400) / 3600);
-  const minutes = Math.floor((left % 3600) / 60);
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
 }
 
 function Progress({ value, label, tone }) {
@@ -331,15 +317,16 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
     contribution,
     refunded,
     approvals,
-    timeouts,
     milestoneWindow,
     expiredRefundAmount,
+    blockTimestamp,
     id,
   } = data;
   const [error, setError] = useState("");
   const isCreator =
     account && account.toLowerCase() === p.creator.toLowerCase();
-  const expired = p.status === 0n && now >= Number(p.deadline);
+  const fundingWindow = fundingDeadlineView(p, blockTimestamp, now);
+  const expired = fundingWindow?.state === "closed";
   const remainingTarget = p.target - p.totalRaised;
 
   async function contribute(event) {
@@ -453,6 +440,10 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
         </p>
       )}
 
+      {fundingWindow?.state === "confirming" && (
+        <p className="form-note">Waiting for a block to confirm the funding deadline.</p>
+      )}
+
       {p.status === 0n &&
         !expired &&
         (isCreator ? (
@@ -502,13 +493,16 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
       )}
 
       {p.status === 2n && contribution > 0n && !refunded && (
-        <button
-          className="primary"
-          disabled={!ready || busy}
-          onClick={() => transact("Claim refund", (c) => c.claimRefund(id))}
-        >
-          Claim refund · {eth(contribution)} ETH
-        </button>
+        <>
+          <p className="form-note">Funding failed. You can reclaim your full contribution.</p>
+          <button
+            className="primary"
+            disabled={!ready || busy}
+            onClick={() => transact("Claim refund", (c) => c.claimRefund(id))}
+          >
+            Claim refund · {eth(contribution)} ETH
+          </button>
+        </>
       )}
 
       {p.status === 3n && (
@@ -526,40 +520,30 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
         const isCurrentStage = BigInt(index) === p.currentMilestone;
         const current = p.status === 1n && isCurrentStage;
         const projected = p.status === 0n;
-        const hasPendingWindow =
-          isCurrentStage && (p.status === 1n || p.status === 4n) && !m.approved;
-        const legacyTimeout = m.submitted ? timeouts?.approval : timeouts?.submission;
-        const legacyOpenedAt = m.submitted ? m.submittedAt : p.successfulAt;
-        const deadline = hasPendingWindow
-          ? milestoneWindow?.deadline ?? (legacyTimeout > 0n ? legacyOpenedAt + legacyTimeout : 0n)
-          : 0n;
-        const secondsLeft = deadline > 0n ? Number(deadline) - now : null;
-        const actionWindowClosed = hasPendingWindow && milestoneWindow?.open === false;
-        const showWindowClosed = milestoneWindow
-          ? actionWindowClosed
-          : secondsLeft !== null && secondsLeft <= 0;
-        const canExpireRefund =
-          isCurrentStage && (expiredRefundAmount ?? 0n) > 0n;
-        const missingRefundQuote =
-          isCurrentStage &&
-          contribution > 0n &&
-          !refunded &&
-          expiredRefundAmount === null &&
-          showWindowClosed;
+        const deadline =
+          isCurrentStage && milestoneWindow?.deadline > 0n
+            ? deadlineView(milestoneWindow.deadline, milestoneWindow.open, now)
+            : null;
+        const windowClosed = deadline?.state === "closed";
+        const refundState = isCurrentStage
+          ? expiryRefundState(contribution, refunded, expiredRefundAmount, windowClosed)
+          : null;
         const stateLabel = m.withdrawn
           ? "Released"
           : m.approved
             ? "Approved"
-            : m.submitted
-              ? "In review"
-              : current
-                ? "Awaiting evidence"
-                : "Pending";
+            : windowClosed
+              ? "Timed out"
+              : m.submitted
+                ? "In review"
+                : current
+                  ? "Awaiting evidence"
+                  : "Pending";
         const stateClass = m.withdrawn
           ? "is-released"
           : m.approved
             ? "is-approved"
-            : m.submitted
+            : m.submitted && !windowClosed
               ? "is-review"
               : "";
         return (
@@ -634,22 +618,31 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
               Needs more than 50% of contributed weight. Exactly 50% fails.
             </p>
 
-            {secondsLeft !== null && (
+            {deadline?.state === "open" && (
               <p className="form-note tight">
                 {m.submitted
-                  ? showWindowClosed
-                    ? "Approval window closed. Backers can reclaim the remaining escrow."
-                    : `Approval closes in ${remainingText(secondsLeft)}.`
-                  : showWindowClosed
-                    ? "No evidence submitted in time. Backers can reclaim the remaining escrow."
-                    : `Creator has ${remainingText(secondsLeft)} to submit evidence.`}
+                  ? `Approval closes in ${remainingText(deadline.secondsLeft)}.`
+                  : `Creator has ${remainingText(deadline.secondsLeft)} to submit evidence.`}
+              </p>
+            )}
+            {deadline?.state === "confirming" && (
+              <p className="form-note tight">Waiting for a block to confirm the milestone deadline.</p>
+            )}
+            {windowClosed && (
+              <p className="form-note tight">
+                {m.submitted ? "Approval deadline passed." : "Evidence submission deadline passed."}
+              </p>
+            )}
+            {current && !m.approved && milestoneWindow === null && (
+              <p className="form-note tight">
+                This deployment does not provide milestone timing. Check the configured contract address.
               </p>
             )}
 
             <div className="milestone-actions">
-              {current && !m.submitted && isCreator && (
+              {current && milestoneWindow?.open && !m.submitted && isCreator && (
                 <form style={{ width: "100%" }} onSubmit={(e) => evidence(e, index)}>
-                  <fieldset disabled={!ready || busy || actionWindowClosed}>
+                  <fieldset disabled={!ready || busy}>
                     <label>
                       What did you deliver?
                       <textarea
@@ -674,10 +667,10 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
                   </fieldset>
                 </form>
               )}
-              {current && m.submitted && !m.approved && contribution > 0n && (
+              {current && milestoneWindow?.open && m.submitted && !m.approved && contribution > 0n && (
                 <button
                   className="primary"
-                  disabled={!ready || busy || approvals[index] || actionWindowClosed}
+                  disabled={!ready || busy || approvals[index]}
                   onClick={() =>
                     transact(`Approve milestone ${index + 1}`, (c) =>
                       c.approveMilestone(id, index),
@@ -704,23 +697,29 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
                     : `Withdraw · ${eth(budget(p.totalRaised, index))} ETH ↗`}
                 </button>
               )}
-              {missingRefundQuote && (
+              {refundState === "unavailable" && (
                 <p className="form-note">
                   This deployment does not provide a refund quote.
                 </p>
               )}
-              {canExpireRefund && (
-                <button
-                  className="primary"
-                  disabled={!ready || busy}
-                  onClick={() =>
-                    transact("Claim expired refund", (c) =>
-                      c.claimExpiredRefund(id),
-                    )
-                  }
-                >
-                  Claim refund · {eth(expiredRefundAmount)} ETH
-                </button>
+              {refundState === "rounds-to-zero" && (
+                <p className="form-note">Your share of the remaining escrow rounds down to 0 wei.</p>
+              )}
+              {refundState === "claimable" && (
+                <>
+                  <p className="form-note">You can reclaim your share of the remaining escrow.</p>
+                  <button
+                    className="primary"
+                    disabled={!ready || busy}
+                    onClick={() =>
+                      transact("Claim expired refund", (c) =>
+                        c.claimExpiredRefund(id),
+                      )
+                    }
+                  >
+                    Claim refund · {eth(expiredRefundAmount)} ETH
+                  </button>
+                </>
               )}
             </div>
           </article>
@@ -762,7 +761,11 @@ export default function App() {
     [walletBusy, setWalletBusy] = useState(false);
   const [tx, setTx] = useState(null),
     [history, setHistory] = useState([]);
-  const [now, setNow] = useState(Math.floor(Date.now() / 1000));
+  const [blockClock, setBlockClock] = useState(null);
+  const [tick, setTick] = useState(() => performance.now());
+  const now = blockClock
+    ? blockClock.timestamp + Math.max(0, Math.floor((tick - blockClock.observedAt) / 1000))
+    : null;
   const requestId = useRef(0),
     txLock = useRef(false),
     walletEpoch = useRef(0),
@@ -770,6 +773,15 @@ export default function App() {
     detailRef = useRef(null);
   const ready = CONFIGURED && !!account && chain === SEPOLIA_CHAIN_ID;
   const busy = tx?.status === "wallet" || tx?.status === "pending";
+  const activeDetail =
+    detail?.account === account && detail.id === selected ? detail : null;
+  const selectedFundingWindow = activeDetail
+    ? fundingDeadlineView(activeDetail.project, activeDetail.blockTimestamp, now)
+    : null;
+  const selectedMilestoneWindow = activeDetail?.milestoneWindow;
+  const waitingForDeadlineBlock =
+    selectedFundingWindow?.state === "confirming" ||
+    (selectedMilestoneWindow?.open && now >= Number(selectedMilestoneWindow.deadline));
 
   // Read-only requests never request a signer or wallet authorization.
   const refresh = useCallback(async () => {
@@ -785,7 +797,10 @@ export default function App() {
       provider = readProvider();
       const contract = await checkedContract(provider);
       // One block snapshot keeps project totals, approvals and escrow consistent.
-      const snapshot = { blockTag: await provider.getBlockNumber() };
+      const block = await provider.getBlock("latest");
+      if (!block) throw new Error("Could not read the latest Sepolia block. Refresh to try again.");
+      const nextClock = { timestamp: block.timestamp, observedAt: performance.now() };
+      const snapshot = { blockTag: block.number };
       const total = await contract.projectCount(snapshot);
       const start = total - 1n - BigInt(page * PAGE_SIZE);
       const ids = Array.from(
@@ -811,10 +826,14 @@ export default function App() {
               submitted: false,
               approved: false,
             };
-            if (Number(project.status) === 1) {
-              const milestone = await contract.getMilestone(id, stage, snapshot);
+            if (project.status === 1n && contribution > 0n && !approvedNow) {
+              const [milestone, window] = await Promise.all([
+                contract.getMilestone(id, stage, snapshot),
+                readMilestoneWindow(contract, id, snapshot),
+              ]);
               extra.submitted = milestone.submitted;
               extra.approved = milestone.approved;
+              extra.reviewOpen = window?.open === true;
             }
             return { ...row, ...extra };
           }),
@@ -853,22 +872,15 @@ export default function App() {
                   ? readExpiredRefundAmount(contract, selected, account, snapshot)
                   : 0n,
               ]);
-              let timeouts = null;
-              if (milestoneWindow === null) {
-                const [approval, submission] = await Promise.all([
-                  contract.APPROVAL_TIMEOUT(snapshot).catch(() => 0n),
-                  contract.SUBMISSION_TIMEOUT(snapshot).catch(() => 0n),
-                ]);
-                timeouts = { approval, submission };
-              }
               return {
                 id: selected,
+                account,
+                blockTimestamp: block.timestamp,
                 project: project.toObject(),
                 milestones: [first.toObject(), second.toObject()],
                 contribution,
                 refunded,
                 approvals: [a0, a1],
-                timeouts,
                 milestoneWindow,
                 expiredRefundAmount,
               };
@@ -878,6 +890,10 @@ export default function App() {
       setCount(total);
       setProjects(rows);
       setDetail(details);
+      // Seeing the same block again should not restart its countdown.
+      setBlockClock((previous) =>
+        previous?.timestamp === nextClock.timestamp ? previous : nextClock,
+      );
       setLastUpdated(new Date());
     } catch (e) {
       if (request === requestId.current) {
@@ -902,10 +918,12 @@ export default function App() {
     };
   }, [refresh]);
   useEffect(() => {
-    const timer = setInterval(
-        () => setNow(Math.floor(Date.now() / 1000)),
-        1000,
-      ),
+    if (!waitingForDeadlineBlock || loading) return;
+    const timer = setTimeout(refresh, 3000);
+    return () => clearTimeout(timer);
+  }, [loading, refresh, waitingForDeadlineBlock]);
+  useEffect(() => {
+    const timer = setInterval(() => setTick(performance.now()), 1000),
       wallet = injectedWallet();
     if (!wallet) return () => clearInterval(timer);
     let live = true;
@@ -956,10 +974,10 @@ export default function App() {
   // On stacked layouts the detail sits below the grid, so bring it into view.
   // On wide screens it is a sticky rail and must not steal the scroll position.
   useEffect(() => {
-    if (!detail || !detailRef.current) return;
+    if (!activeDetail || !detailRef.current) return;
     if (!window.matchMedia("(max-width: 1080px)").matches) return;
     detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [detail?.id]);
+  }, [activeDetail?.id]);
 
   // Clear finished transaction banners automatically; errors linger a bit longer.
   useEffect(() => {
@@ -1039,7 +1057,12 @@ export default function App() {
       }
       if (!receipt || receipt.status !== 1)
         throw new Error("Transaction reverted. Check Etherscan.");
-      const result = { status: "success", label, hash: receipt.hash };
+      const refundWei = refundAmountFromReceipt(contract, receipt);
+      const result = {
+        status: "success",
+        label: refundWei === null ? label : `Refund paid · ${eth(refundWei)} ETH`,
+        hash: receipt.hash,
+      };
       setTx(result);
       setHistory((items) => [result, ...items].slice(0, 12));
       await refreshRef.current();
@@ -1269,7 +1292,7 @@ export default function App() {
                 )}
               </div>
             ) : (
-              <div className={`workspace${detail ? " with-detail" : ""}`}>
+              <div className={`workspace${activeDetail ? " with-detail" : ""}`}>
                 <div className="list-column">
                   {loading && !projects.length ? (
                     <Skeleton />
@@ -1305,8 +1328,12 @@ export default function App() {
                   ) : (
                     <div className="project-grid">
                       {visible.map((p) => {
-                        const left = countdown(p.deadline, now);
-                        const showDeadline = p.status === 0n && !left.over;
+                        const fundingWindow = fundingDeadlineView(p, blockClock.timestamp, now);
+                        const expired = fundingWindow?.state === "closed";
+                        const showDeadline = fundingWindow && !expired;
+                        const deadlineText = fundingWindow?.state === "confirming"
+                          ? "Waiting for deadline block"
+                          : showDeadline && `${remainingText(fundingWindow.secondsLeft)} left`;
                         return (
                           <button
                             className={`project-card ${selected === p.id ? "selected" : ""}`}
@@ -1320,9 +1347,7 @@ export default function App() {
                               </span>
                               <Badge
                                 status={Number(p.status)}
-                                expired={
-                                  p.status === 0n && now >= Number(p.deadline)
-                                }
+                                expired={expired}
                               />
                             </div>
                             <h3>{p.name}</h3>
@@ -1348,11 +1373,11 @@ export default function App() {
                               <span
                                 className={
                                   showDeadline
-                                    ? `deadline${left.urgent ? " urgent" : ""}`
+                                    ? `deadline${fundingWindow.secondsLeft < 86400 ? " urgent" : ""}`
                                     : "stage"
                                 }
                               >
-                                {showDeadline ? left.text : stageText(p)}
+                                {showDeadline ? deadlineText : stageText(p)}
                               </span>
                               <span className="card-goal">
                                 of {eth(p.target)} ETH
@@ -1405,10 +1430,10 @@ export default function App() {
                 </div>
 
                 <aside className="detail-column" ref={detailRef}>
-                  {detail ? (
+                  {activeDetail ? (
                     <ProjectDetails
-                      key={`${detail.id}-${account}`}
-                      data={detail}
+                      key={`${activeDetail.id}-${account}`}
+                      data={activeDetail}
                       account={account}
                       ready={ready}
                       busy={busy}

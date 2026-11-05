@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  deadlineView,
+  expiryRefundState,
+  remainingText,
   budget,
   errorMessage,
   eth,
@@ -10,6 +13,37 @@ import {
   safeUrl,
   shortAddress,
 } from "../src/utils.js";
+
+describe("deadline display", () => {
+  test("counts down to seconds and waits for an on-chain cutoff", () => {
+    assert.deepEqual(deadlineView(100n, true, 99), { secondsLeft: 1, state: "open" });
+    assert.equal(remainingText(1), "1s");
+    assert.equal(remainingText(59), "59s");
+    assert.equal(remainingText(60), "1m");
+    assert.deepEqual(deadlineView(100n, true, 100), { secondsLeft: 0, state: "confirming" });
+    assert.deepEqual(deadlineView(100n, true, 120), { secondsLeft: 0, state: "confirming" });
+  });
+
+  test("shows a closed window as soon as the snapshot says it is closed", () => {
+    assert.equal(deadlineView(100n, false, 99).state, "closed");
+    assert.equal(deadlineView(100n, false, 100).state, "closed");
+  });
+});
+
+describe("expiryRefundState", () => {
+  test("uses each unrefunded backer's on-chain quote after the first claim", () => {
+    assert.equal(expiryRefundState(60n, false, 36n, true), "claimable");
+    assert.equal(expiryRefundState(60n, true, 0n, true), null);
+    assert.equal(expiryRefundState(43n, false, 25n, true), "claimable");
+    assert.equal(expiryRefundState(0n, false, 0n, true), null);
+  });
+
+  test("distinguishes a pending window, an unavailable quote and a zero share", () => {
+    assert.equal(expiryRefundState(1n, false, 0n, false), null);
+    assert.equal(expiryRefundState(1n, false, null, true), "unavailable");
+    assert.equal(expiryRefundState(1n, false, 0n, true), "rounds-to-zero");
+  });
+});
 
 // Every case here runs on plain values: no network, no clock, no .env.local.
 const ADDRESS = "0x9b824CA674432B390E30A5164a76c04EeAa8f686";
@@ -185,6 +219,7 @@ describe("matchesFilter", () => {
   test("review needs an open, unapproved milestone the user backed", () => {
     const ready = project({ status: 1n, submitted: true, contribution: 5n });
     assert.equal(matchesFilter("review", ready, null), true);
+    assert.equal(matchesFilter("review", { ...ready, reviewOpen: false }, null), false);
 
     assert.equal(matchesFilter("review", project({ status: 1n, submitted: true, contribution: 5n, approved: true }), null), false);
     assert.equal(matchesFilter("review", project({ status: 1n, submitted: true, contribution: 5n, approvedNow: true }), null), false);
