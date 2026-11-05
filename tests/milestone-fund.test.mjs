@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { ZeroAddress } from "ethers";
 import { compileFixtures, localChain, profiles } from "./helpers/local-chain.mjs";
 
 const evidence = (id, stage) => [id, stage, "Delivered for testing", "https://example.com/demo"];
@@ -208,6 +209,97 @@ for (const profile of profiles) {
     assert.equal((await h.read("getProject", [q])).escrowBalance, 0n);
     assert.equal((await h.read("getProject", [p])).escrowBalance, 60n);
     assert.equal(await h.balance(), 60n);
+  });
+
+  test(`${profile.name}: anyone can release two approved milestones and only the creator can collect`, async () => {
+    const h = await localChain(artifacts);
+    const id = await h.create();
+    const recipient = h.address("C");
+    await h.send("B", "contribute", [id], { value: 100n });
+    await h.send("D", "releaseMilestone", [id, 0], { revert: "Milestone not withdrawable" });
+    await h.send("A", "submitEvidence", evidence(id, 0));
+    await h.send("B", "approveMilestone", [id, 0]);
+    h.at(h.now() + await h.read("APPROVAL_TIMEOUT"));
+    const first = await h.send("D", "releaseMilestone", [id, 0]);
+    assert.equal(event(first, "MilestoneReleased").amount, 40n);
+    assert.equal((await h.read("getProject", [id])).escrowBalance, 60n);
+    assert.equal(await h.read("claimablePayouts", [id]), 40n);
+    assert.equal(await h.balance(), 100n, "Releasing must not send any ETH");
+    await assertWindow(h, id, h.now() + await h.read("SUBMISSION_TIMEOUT"), true);
+    await h.send("D", "releaseMilestone", [id, 0], { revert: "Wrong milestone" });
+    await h.send("D", "claimPayout", [id, h.address("D")], { revert: "Creator only" });
+    await h.send("A", "claimPayout", [id, ZeroAddress], { revert: "Invalid payout recipient" });
+
+    await h.send("A", "submitEvidence", evidence(id, 1));
+    await h.send("B", "approveMilestone", [id, 1]);
+    const second = await h.send("D", "releaseMilestone", [id, 1]);
+    assert.equal(event(second, "MilestoneReleased").amount, 60n);
+    assert.equal(event(second, "ProjectCompleted").projectId, id);
+    assert.equal((await h.read("getProject", [id])).escrowBalance, 0n);
+    assert.equal((await h.read("getProject", [id])).status, 3n);
+    assert.equal(await h.read("claimablePayouts", [id]), 100n);
+    await h.send("D", "releaseMilestone", [id, 1], { revert: "Project not successful" });
+
+    const before = await h.balance(h.accounts.C.address);
+    const claim = await h.send("A", "claimPayout", [id, recipient]);
+    const paid = event(claim, "PayoutClaimed");
+    assert.equal(paid.amount, 100n);
+    assert.equal(paid.recipient.toLowerCase(), recipient);
+    assert.equal(await h.balance(h.accounts.C.address), before + 100n);
+    assert.equal(await h.read("claimablePayouts", [id]), 0n);
+    assert.equal(await h.balance(), 0n);
+    await h.send("A", "claimPayout", [id, recipient], { revert: "No payout available" });
+  });
+
+  test(`${profile.name}: a rejecting creator can redirect released funds after the next stage expires`, async () => {
+    const h = await localChain(artifacts);
+    const receiver = await h.deploy("A", artifacts.receiver, [h.fund.address.toString()]);
+    const receiverAddress = receiver.address.toString();
+    await h.send("A", "create", [100n, h.now() + 100n], { target: receiver });
+    const id = 0n;
+    await h.send("B", "contribute", [id], { value: 100n });
+    await h.send("A", "evidence", [id], { target: receiver });
+    await h.send("B", "approveMilestone", [id, 0]);
+    await h.send("A", "withdraw", [id], { target: receiver, revert: "ETH transfer failed" });
+
+    await h.send("D", "releaseMilestone", [id, 0]);
+    assert.equal(await h.balance(receiver.address), 0n);
+    assert.equal(await h.read("claimablePayouts", [id]), 40n);
+    await h.send("A", "claimPayoutTo", [id, receiverAddress], {
+      target: receiver, revert: "ETH transfer failed",
+    });
+    assert.equal(await h.read("claimablePayouts", [id]), 40n);
+
+    h.at(h.now() + await h.read("SUBMISSION_TIMEOUT"));
+    assert.equal(await h.read("getExpiredRefundAmount", [id, h.address("B")]), 60n);
+    const refund = await h.send("B", "claimExpiredRefund", [id]);
+    assert.equal(event(refund, "RefundClaimed").amount, 60n);
+    assert.equal((await h.read("getProject", [id])).status, 4n);
+    assert.equal((await h.read("getProject", [id])).escrowBalance, 0n);
+    assert.equal(await h.balance(), 40n);
+
+    const before = await h.balance(h.accounts.C.address);
+    const claim = await h.send("A", "claimPayoutTo", [id, h.address("C")], { target: receiver });
+    assert.equal(event(claim, "PayoutClaimed").amount, 40n);
+    assert.equal(await h.balance(h.accounts.C.address), before + 40n);
+    assert.equal(await h.read("claimablePayouts", [id]), 0n);
+    assert.equal(await h.balance(), 0n);
+  });
+
+  test(`${profile.name}: a direct payout leaves earlier credited funds available`, async () => {
+    const h = await localChain(artifacts);
+    const id = await h.create();
+    await h.send("B", "contribute", [id], { value: 100n });
+    await h.send("A", "submitEvidence", evidence(id, 0));
+    await h.send("B", "approveMilestone", [id, 0]);
+    await h.send("D", "releaseMilestone", [id, 0]);
+    await h.send("A", "submitEvidence", evidence(id, 1));
+    await h.send("B", "approveMilestone", [id, 1]);
+    await payout(h, id, 1, 60n);
+    assert.equal(await h.read("claimablePayouts", [id]), 40n);
+    assert.equal(await h.balance(), 40n);
+    await h.send("A", "claimPayout", [id, h.address("A")]);
+    assert.equal(await h.balance(), 0n);
   });
 
   test(`${profile.name}: approval timeout refunds both backers in either claim order`, async () => {

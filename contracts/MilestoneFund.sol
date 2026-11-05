@@ -2,9 +2,8 @@
 pragma solidity ^0.8.24;
 
 /// @title MilestoneFund Lite - two-stage, contribution-weighted crowdfunding.
-/// @notice Educational prototype. No owner, admin withdrawal, or fee. Funds can no
-/// longer lock forever: an approval that times out, or evidence the creator never
-/// submits, lets backers reclaim their share of the remaining escrow.
+/// @notice Educational prototype. No owner, admin withdrawal, or fee. Anyone can
+/// release an approved milestone. Only the creator can claim the released payout.
 contract MilestoneFund {
     enum ProjectStatus { Funding, Successful, Failed, Completed, Expired }
 
@@ -26,6 +25,7 @@ contract MilestoneFund {
         string evidence;
         string evidenceUrl;
         uint256 approvalWeight;
+        // The amount released from escrow, including funds credited for later claim.
         uint256 withdrawnAmount;
         uint256 submittedAt;
         bool submitted;
@@ -49,6 +49,7 @@ contract MilestoneFund {
     bool private entered;
     mapping(uint256 => uint256) private expiredRefundPools;
     mapping(uint256 => uint256) private secondMilestoneOpenedAt;
+    mapping(uint256 => uint256) public claimablePayouts;
 
     event ProjectCreated(uint256 indexed projectId, address indexed creator, uint256 target, uint256 deadline);
     event ContributionReceived(uint256 indexed projectId, address indexed backer, uint256 amount);
@@ -57,7 +58,9 @@ contract MilestoneFund {
     event EvidenceSubmitted(uint256 indexed projectId, uint8 indexed milestone, string evidence, string evidenceUrl);
     event ApprovalCast(uint256 indexed projectId, uint8 indexed milestone, address indexed backer, uint256 weight);
     event MilestoneApproved(uint256 indexed projectId, uint8 indexed milestone);
+    event MilestoneReleased(uint256 indexed projectId, uint8 indexed milestone, uint256 amount);
     event FundsWithdrawn(uint256 indexed projectId, uint8 indexed milestone, uint256 amount);
+    event PayoutClaimed(uint256 indexed projectId, address indexed recipient, uint256 amount);
     event ProjectCompleted(uint256 indexed projectId);
     event RefundClaimed(uint256 indexed projectId, address indexed backer, uint256 amount);
     event ExcessRefunded(uint256 indexed projectId, address indexed backer, uint256 amount);
@@ -181,16 +184,44 @@ contract MilestoneFund {
         }
     }
 
-    /// @notice First stage gets floor(totalRaised * 40 / 100); second gets remainder.
+    /// @notice Release and pay an approved milestone to the creator in one transaction.
     function withdrawMilestone(uint256 projectId, uint8 milestone) external validProject(projectId) nonReentrant {
         Project storage p = projects[projectId];
         require(msg.sender == p.creator, "Creator only");
+        uint256 amount = _releaseMilestone(projectId, milestone, p);
+        emit FundsWithdrawn(projectId, milestone, amount);
+        if (milestone == 1) emit ProjectCompleted(projectId);
+        _sendPayout(p.creator, amount);
+    }
+
+    /// @notice Advance an approved milestone and credit its payout without sending ETH.
+    function releaseMilestone(uint256 projectId, uint8 milestone) external validProject(projectId) nonReentrant {
+        uint256 amount = _releaseMilestone(projectId, milestone, projects[projectId]);
+        claimablePayouts[projectId] += amount;
+        emit MilestoneReleased(projectId, milestone, amount);
+        if (milestone == 1) emit ProjectCompleted(projectId);
+    }
+
+    /// @notice The creator can collect the project's released payouts at a chosen address.
+    function claimPayout(uint256 projectId, address payable recipient) external validProject(projectId) nonReentrant {
+        require(msg.sender == projects[projectId].creator, "Creator only");
+        require(recipient != address(0), "Invalid payout recipient");
+        uint256 amount = claimablePayouts[projectId];
+        require(amount > 0, "No payout available");
+        claimablePayouts[projectId] = 0;
+        emit PayoutClaimed(projectId, recipient, amount);
+        _sendPayout(recipient, amount);
+    }
+
+    function _releaseMilestone(uint256 projectId, uint8 milestone, Project storage p)
+        private returns (uint256 amount)
+    {
         require(p.status == ProjectStatus.Successful, "Project not successful");
         require(milestone < 2 && milestone == p.currentMilestone, "Wrong milestone");
         Milestone storage m = milestones[projectId][milestone];
         require(m.approved && !m.withdrawn, "Milestone not withdrawable");
         // floor(total * 2 / 5), split into quotient and remainder to avoid overflow.
-        uint256 amount = milestone == 0
+        amount = milestone == 0
             ? (p.totalRaised / 5) * 2 + (p.totalRaised % 5) * 2 / 5
             : p.escrowBalance;
         m.withdrawn = true;
@@ -202,14 +233,12 @@ contract MilestoneFund {
         } else {
             p.status = ProjectStatus.Completed;
         }
-        emit FundsWithdrawn(projectId, milestone, amount);
-        if (milestone == 1) emit ProjectCompleted(projectId);
-        // All accounting is committed before the external call. Failure rolls it back.
-        // A zero payout skips the call entirely, so a rejecting creator cannot block it.
-        if (amount > 0) {
-            (bool sent,) = p.creator.call{value: amount}("");
-            require(sent, "ETH transfer failed");
-        }
+    }
+
+    function _sendPayout(address payable recipient, uint256 amount) private {
+        if (amount == 0) return;
+        (bool sent,) = recipient.call{value: amount}("");
+        require(sent, "ETH transfer failed");
     }
 
     function claimRefund(uint256 projectId) external validProject(projectId) nonReentrant {
