@@ -8,6 +8,30 @@ export const percent = (part, total) =>
   total > 0n ? Number((part * 10000n) / total) / 100 : 0;
 export const budget = (total, index) =>
   index === 0 ? (total * 2n) / 5n : total - (total * 2n) / 5n;
+
+export function deadlineView(deadline, open, now) {
+  const secondsLeft = Math.max(0, Number(deadline) - now);
+  if (!open) return { secondsLeft, state: "closed" };
+  return { secondsLeft, state: secondsLeft === 0 ? "confirming" : "open" };
+}
+
+export function remainingText(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${Math.floor(seconds)}s`;
+}
+
+export function expiryRefundState(contribution, refunded, quote, windowClosed) {
+  if (contribution <= 0n || refunded) return null;
+  if (quote !== null && quote > 0n) return "claimable";
+  if (!windowClosed) return null;
+  return quote === null ? "unavailable" : "rounds-to-zero";
+}
+
 export function positiveEth(value) {
   if (!/^\d+(\.\d{1,18})?$/.test(value))
     throw new Error(
@@ -38,6 +62,7 @@ export function matchesFilter(key, project, account) {
         Number(project.status) === 1 &&
         !!project.submitted &&
         !project.approved &&
+        project.reviewOpen !== false &&
         (project.contribution ?? 0n) > 0n &&
         !project.approvedNow
       );
