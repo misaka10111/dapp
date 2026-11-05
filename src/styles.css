@@ -943,7 +943,8 @@ button:disabled {
 .stat.highlight > strong {
   color: var(--accent-ink);
 }
-.contribute-form {
+.contribute-form,
+.payout-form {
   display: flex;
   align-items: flex-end;
   gap: 12px;
@@ -953,7 +954,8 @@ button:disabled {
   border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
-.contribute-form label {
+.contribute-form label,
+.payout-form label {
   flex: 1;
   margin: 0;
 }
@@ -1456,7 +1458,8 @@ footer .brand {
   .detail-stats {
     grid-template-columns: 1fr;
   }
-  .contribute-form {
+  .contribute-form,
+  .payout-form {
     flex-direction: column;
     align-items: stretch;
   }

@@ -6,9 +6,13 @@ import "MilestoneFund.sol";
 // Local-test fixture: verifies that a rejected ETH transfer rolls back accounting.
 contract PaymentReceiver {
     MilestoneFund public immutable fund;
+    address private immutable owner;
     bool public rejectPayments = true;
 
-    constructor(address fundAddress) { fund = MilestoneFund(fundAddress); }
+    constructor(address fundAddress) {
+        fund = MilestoneFund(fundAddress);
+        owner = msg.sender;
+    }
 
     function create(uint256 target, uint256 deadline) external {
         fund.createProject("Receiver project", "Transfer rollback test", target, deadline, "First", "Second");
@@ -18,6 +22,10 @@ contract PaymentReceiver {
     function evidenceFor(uint256 projectId, uint8 milestone) external { fund.submitEvidence(projectId, milestone, "Delivered", "https://example.com/demo"); }
     function withdraw(uint256 projectId) external { fund.withdrawMilestone(projectId, 0); }
     function withdrawFor(uint256 projectId, uint8 milestone) external { fund.withdrawMilestone(projectId, milestone); }
+    function claimPayoutTo(uint256 projectId, address payable recipient) external {
+        require(msg.sender == owner, "Receiver owner only");
+        fund.claimPayout(projectId, recipient);
+    }
     function refund(uint256 projectId) external { fund.claimRefund(projectId); }
     function expiredRefund(uint256 projectId) external { fund.claimExpiredRefund(projectId); }
     function allowPayments() external { rejectPayments = false; }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BrowserProvider, getAddress } from "ethers";
+import { BrowserProvider, ZeroAddress, getAddress } from "ethers";
 import {
   CONFIGURED,
   CONFIG_ERROR,
@@ -319,6 +319,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
     approvals,
     milestoneWindow,
     expiredRefundAmount,
+    claimablePayout,
     blockTimestamp,
     id,
   } = data;
@@ -365,6 +366,18 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
       await transact(`Submit milestone ${index + 1}`, (c) =>
         c.submitEvidence(id, index, text, url),
       );
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }
+  async function withdrawPayout(event) {
+    event.preventDefault();
+    setError("");
+    try {
+      const enteredAddress = new FormData(event.currentTarget).get("recipient").trim();
+      const recipient = getAddress(enteredAddress || account);
+      if (recipient === ZeroAddress) throw new Error("Enter a nonzero payout recipient address.");
+      await transact("Withdraw released payout", (c) => c.claimPayout(id, recipient));
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -433,6 +446,32 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
           </strong>
         </div>
       </div>
+
+      {claimablePayout > 0n && (
+        <section aria-label="Creator payout">
+          <div className="stat highlight">
+            <span>Creator payout available</span>
+            <strong><Eth value={claimablePayout} /></strong>
+          </div>
+          {isCreator && (
+            <form className="payout-form" onSubmit={withdrawPayout}>
+              <label>
+                Recipient address · defaults to your wallet
+                <input
+                  name="recipient"
+                  placeholder={account}
+                  spellCheck={false}
+                  autoComplete="off"
+                  disabled={!ready || busy}
+                />
+              </label>
+              <button className="primary" disabled={!ready || busy}>
+                Withdraw payout
+              </button>
+            </form>
+          )}
+        </section>
+      )}
 
       {refunded && (
         <p className="success-note">
@@ -507,19 +546,20 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
 
       {p.status === 3n && (
         <p className="success-note">
-          ✓ Both milestones are complete. All project funds have been released.
+          ✓ Both milestones are complete. All funds have been released from escrow.
         </p>
       )}
 
       <div className="section-heading milestone-heading">
         <h3>The milestones</h3>
-        <span>Evidence → Approval → Withdrawal</span>
+        <span>Evidence → Approval → Release</span>
       </div>
 
       {milestones.map((m, index) => {
         const isCurrentStage = BigInt(index) === p.currentMilestone;
         const current = p.status === 1n && isCurrentStage;
         const projected = p.status === 0n;
+        const stageBudget = budget(p.totalRaised, index);
         const deadline =
           isCurrentStage && milestoneWindow?.deadline > 0n
             ? deadlineView(milestoneWindow.deadline, milestoneWindow.open, now)
@@ -571,7 +611,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
                 <b>
                   {projected && p.totalRaised === 0n
                     ? "—"
-                    : `${eth(budget(p.totalRaised, index))} ETH`}
+                    : `${eth(stageBudget)} ETH`}
                 </b>
                 {projected && p.totalRaised > 0n && (
                   <> of {eth(p.totalRaised)} ETH raised</>
@@ -579,7 +619,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
               </span>
               {m.withdrawn && (
                 <span>
-                  Released: <b>{eth(m.withdrawnAmount)} ETH</b>
+                  Released from escrow: <b>{eth(m.withdrawnAmount)} ETH</b>
                 </span>
               )}
             </div>
@@ -682,20 +722,36 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
                     : `Approve · ${eth(contribution)} ETH weight`}
                 </button>
               )}
-              {current && m.approved && !m.withdrawn && isCreator && (
-                <button
-                  className="primary"
-                  disabled={!ready || busy}
-                  onClick={() =>
-                    transact(`Withdraw milestone ${index + 1}`, (c) =>
-                      c.withdrawMilestone(id, index),
-                    )
-                  }
-                >
-                  {budget(p.totalRaised, index) === 0n
-                    ? "Withdraw · 0 ETH, advances the stage"
-                    : `Withdraw · ${eth(budget(p.totalRaised, index))} ETH ↗`}
-                </button>
+              {current && m.approved && !m.withdrawn && (
+                <>
+                  {isCreator && stageBudget > 0n && (
+                    <button
+                      className="primary"
+                      disabled={!ready || busy}
+                      onClick={() =>
+                        transact(`Release and withdraw milestone ${index + 1}`, (c) =>
+                          c.withdrawMilestone(id, index),
+                        )
+                      }
+                    >
+                      Release &amp; withdraw · {eth(stageBudget)} ETH
+                    </button>
+                  )}
+                  <button
+                    className={isCreator && stageBudget > 0n ? "ghost" : "primary"}
+                    disabled={!ready || busy}
+                    onClick={() =>
+                      transact(`Release milestone ${index + 1}`, (c) =>
+                        c.releaseMilestone(id, index),
+                      )
+                    }
+                  >
+                    {stageBudget === 0n ? "Release milestone · 0 ETH" : "Release to creator balance"}
+                  </button>
+                  <p className="form-note tight">
+                    Anyone can release this stage. Only the creator can withdraw its payout.
+                  </p>
+                </>
               )}
               {refundState === "unavailable" && (
                 <p className="form-note">
@@ -851,6 +907,7 @@ export default function App() {
                 a1,
                 milestoneWindow,
                 expiredRefundAmount,
+                claimablePayout,
               ] = await Promise.all([
                 contract.getProject(selected, snapshot),
                 contract.getMilestone(selected, 0, snapshot),
@@ -871,6 +928,7 @@ export default function App() {
                 account
                   ? readExpiredRefundAmount(contract, selected, account, snapshot)
                   : 0n,
+                contract.claimablePayouts(selected, snapshot),
               ]);
               return {
                 id: selected,
@@ -883,6 +941,7 @@ export default function App() {
                 approvals: [a0, a1],
                 milestoneWindow,
                 expiredRefundAmount,
+                claimablePayout,
               };
             })(),
       ]);
