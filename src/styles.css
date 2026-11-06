@@ -22,7 +22,7 @@
   --radius-xs: 7px;
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
   --shadow-md: 0 12px 32px -18px rgba(15, 23, 42, 0.35);
-  --maxw: 1180px;
+  --maxw: 1420px;
 
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -715,13 +715,13 @@ button:disabled {
 /* List and detail sit side by side so clicking a card never means scrolling. */
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
+  grid-template-columns: minmax(0, 1fr) clamp(420px, 37%, 504px);
   gap: 24px;
   align-items: start;
   margin-top: 4px;
 }
 .workspace:not(.with-detail) {
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) clamp(360px, 32%, 432px);
 }
 .list-column {
   min-width: 0;
@@ -736,6 +736,19 @@ button:disabled {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
   padding-bottom: 2px;
+  scroll-margin-top: 88px;
+}
+.workspace.with-detail .detail-column {
+  padding-bottom: 0;
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5),
+    0 0 0 6px rgba(37, 99, 235, 0.1),
+    0 0 28px rgba(37, 99, 235, 0.17);
+}
+.workspace.with-detail .detail-panel {
+  margin-top: 0;
+  border-color: #a8c4ff;
+  box-shadow: none;
 }
 .detail-column::-webkit-scrollbar {
   width: 8px;
@@ -791,38 +804,27 @@ button:disabled {
 }
 
 /* ---------------------------------------------------------------- contract */
-.contract-card {
-  margin-top: 16px;
-  padding: 16px 18px;
-  background: var(--surface-2);
-  box-shadow: none;
-}
-.contract-head {
+.contract-info {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px 14px;
+  margin-top: 18px;
+  font-size: 12px;
+}
+.contract-identity {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.contract-label {
+  color: var(--muted);
+  font-weight: 650;
 }
 .contract-address {
-  display: block;
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  background: var(--surface);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
   color: var(--ink-2);
   overflow-wrap: anywhere;
-}
-.contract-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--faint);
 }
 .contract-actions {
   display: inline-flex;
@@ -945,16 +947,74 @@ button:disabled {
 }
 .contribute-form,
 .payout-form {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
   margin: 18px 0 4px;
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
-.contribute-form label,
+.contribute-form {
+  display: grid;
+  gap: 10px;
+}
+.contribute-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.contribute-heading label,
+.contribute-form .form-note {
+  margin: 0;
+}
+.contribute-remaining {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.contribute-entry {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.contribute-entry input,
+.contribute-entry button {
+  width: 100%;
+  height: 44px;
+}
+.contribute-entry button {
+  white-space: nowrap;
+}
+.contribute-amount {
+  position: relative;
+  min-width: 0;
+}
+.contribute-amount input {
+  padding-inline-end: 46px;
+}
+.contribute-amount > span {
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.contribute-form .form-note {
+  color: var(--muted);
+}
+.payout-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
 .payout-form label {
   flex: 1;
   margin: 0;
@@ -1140,7 +1200,7 @@ button:disabled {
   box-shadow: var(--shadow-sm);
 }
 .create-panel {
-  max-width: 860px;
+  max-width: 1032px;
   margin-inline: auto;
   margin-top: 28px;
 }
@@ -1458,15 +1518,22 @@ footer .brand {
   .detail-stats {
     grid-template-columns: 1fr;
   }
-  .contribute-form,
   .payout-form {
     flex-direction: column;
     align-items: stretch;
+  }
+  .detail-column {
+    scroll-margin-top: 132px;
   }
   .toast {
     right: 16px;
     left: 16px;
     bottom: 16px;
     width: auto;
+  }
+}
+@media (max-width: 400px) {
+  .contribute-entry {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
