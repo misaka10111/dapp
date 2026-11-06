@@ -1484,7 +1484,11 @@ export default function App() {
                   )}
                 </div>
 
-                <aside className="detail-column" ref={detailRef}>
+                <aside
+                  key={activeDetail?.id ?? "placeholder"}
+                  className="detail-column"
+                  ref={detailRef}
+                >
                   {activeDetail ? (
                     <ProjectDetails
                       key={`${activeDetail.id}-${account}`}

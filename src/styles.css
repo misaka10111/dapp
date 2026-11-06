@@ -741,13 +741,25 @@ button:disabled {
 .workspace.with-detail .detail-column {
   padding-bottom: 0;
   border-radius: var(--radius);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5),
-    0 0 0 6px rgba(37, 99, 235, 0.1),
-    0 0 28px rgba(37, 99, 235, 0.17);
+  animation: detail-glow-fade 500ms ease-out 2s backwards;
+}
+@keyframes detail-glow-fade {
+  from {
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5),
+      0 0 0 6px rgba(37, 99, 235, 0.1),
+      0 0 28px rgba(37, 99, 235, 0.17);
+  }
+  to {
+    box-shadow: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace.with-detail .detail-column {
+    animation-duration: 0s;
+  }
 }
 .workspace.with-detail .detail-panel {
   margin-top: 0;
-  border-color: #a8c4ff;
   box-shadow: none;
 }
 .detail-column::-webkit-scrollbar {
