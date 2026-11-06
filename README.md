@@ -2,9 +2,9 @@
 
 COMP7610 课程项目：支持者为项目出资，项目方按两个里程碑提交成果。支持者审批通过后，任何账户都能释放该阶段的资金，第一阶段为 40%，第二阶段为余款。发起人领取已释放资金。仅使用 Sepolia 测试 ETH。出资封顶于目标金额（超额当场退回）；审批或成果提交超时后，支持者可按贡献比例取回剩余托管资金。
 
-**测试方式：组员用 Remix 部署合约，大家在各自电脑启动网页，通过 MetaMask 手动操作。** 只需一位组员部署到 Sepolia，再把合约地址发给其他人。
+**在线演示** · 在 Explore 可以直接查看 Sepolia 上的项目，包括已完成两阶段拨款的 `Test Project 02`。创建项目、出资、审批或领取款项时，连接 MetaMask，切到 Ethereum Sepolia，并准备测试 ETH 支付 gas。 [打开 MilestoneFund](https://misaka10111.github.io/dapp/)
 
-2026-10-22 已补齐可复跑的本地连续状态测试及现有部署核验。手动成功/退款流程的 15 笔交易与截图见 [端到端测试记录](docs/e2e-test-record.md)；本地测试见 [自动化测试说明](docs/automated-testing.md)；现有合约的完整字节码复现见 [部署核对记录](docs/deployment-verification.md)。
+可复跑的本地测试见 [自动化测试说明](docs/automated-testing.md)。初版合约的交易截图和字节码复现保存在 [端到端测试记录](docs/e2e-test-record.md) 和 [部署核对记录](docs/deployment-verification.md)。
 
 ## 1. 项目文件
 
@@ -29,7 +29,7 @@ COMP7610 课程项目：支持者为项目出资，项目方按两个里程碑�
 | `tests/helpers/fake-wallet.mjs` | 测试用的 EIP-1193 钱包模拟器，可模拟多钱包、拒绝签名与错误链。 |
 | `scripts/verify-deployment.mjs` | 只读核对 Sepolia 运行字节码与编译结果，保存可复现证据。 |
 | `scripts/check-format.mjs` | 基础格式检查，无需额外依赖。 |
-| `.github/workflows/ci.yml` | PR 与 main 的自动检查：安装、格式、测试、构建。 |
+| `.github/workflows/ci.yml` | PR 与 `main` 的自动检查，以及 `main` 的 GitHub Pages 发布。 |
 | `README.md` | 本说明文件。 |
 
 ## 2. 安装依赖并启动网页
@@ -49,33 +49,27 @@ COMP7610 课程项目：支持者为项目出资，项目方按两个里程碑�
 | Vite、React 插件 | 启动和构建前端 | `npm ci` 一起安装 |
 | solc 0.8.24 | 可选的本地合约编译和 ABI 更新 | `npm ci` 一起安装；Remix 中单独选择编译器版本 |
 
-源码上传到 GitHub 的 `milestonefunddemo` 分支后，组员可执行：
+克隆 `main` 并安装依赖。
 
 ```bash
-git clone --branch milestonefunddemo https://github.com/misaka10111/dapp.git
+git clone --branch main https://github.com/misaka10111/dapp.git
 cd dapp
+npm ci
 ```
 
-在项目根目录（能看到 package.json 的目录）运行：
+按[第 4 节](#4-配置本地网页)填写 `.env.local`，然后在项目根目录启动。
 
 ```bash
-node --version
-npm --version
-npm ci       # 安装 package.json / package-lock.json 中的全部项目依赖
-npm run dev  # 安装完成后，启动网页
+npm run dev
 ```
-
-`node --version` 和 `npm --version` 只是检查是否安装成功。真正安装项目依赖的是 **`npm ci`**，首次下载项目或依赖发生变化时运行。平时重新打开网页只需 `npm run dev`，不必每次重新安装。安装依赖后会生成 `node_modules/`，不要上传这个目录。
 
 打开终端显示的网址，通常是 `http://localhost:5173`。保持终端运行，按 Ctrl+C 可以停止。
 
-此时应该能打开页面，并显示“尚未配置合约”的提示。页面里没有假项目或假金额，链上操作需要先完成下面的部署和配置。
+首次下载项目或 `package-lock.json` 变化后运行 `npm ci`。平时启动网页运行 `npm run dev`。
 
-如果组员已有本地仓库，先保存自己的修改，再获取对应分支，不要用 reset 覆盖自己的工作，也不要在 main 上修改。
+## 3. 部署独立测试合约（可选）
 
-## 3. 组员使用 Remix 部署合约
-
-下面的 **0.8.24 / 优化开启 / Paris** 步骤用于按仓库默认配置部署当前合约。旧测试合约 `0x9b824CA674432B390E30A5164a76c04EeAa8f686` 是 **v1**，它的字节码复现见 [部署核对记录](docs/deployment-verification.md)。要使用固定退款池、独立的阶段时限和链上报价，须部署本版合约。先运行 `npm run compile:contract` 更新 ABI，部署后将新地址填入 `.env.local`。
+在线演示和日常本地测试使用第 4 节的 Sepolia 合约。需要隔离测试数据时，可以按仓库默认的 **0.8.24 / 优化开启 / Paris** 配置在 Remix 部署一个独立实例。修改合约接口后，先运行 `npm run compile:contract` 更新 ABI。部署完成后，将独立实例地址填入本机的 `.env.local`。
 
 1. 在安装 MetaMask 的浏览器中打开 [Remix](https://remix.ethereum.org)。
 2. 新建 `MilestoneFund.sol`，复制仓库中 `contracts/MilestoneFund.sol` 的全部内容。
@@ -89,49 +83,16 @@ npm run dev  # 安装完成后，启动网页
 
 ## 4. 配置本地网页
 
-`.env.example` **只是空白配置模板，不是运行必需文件**。它告诉组员要填写哪些配置，可以上传 GitHub。Vite 默认不会自动读取它。
-
-`.env.local` 是每个人电脑上的实际配置文件，Vite 启动时会读取它，本项目已把它加入 Git 忽略规则。这里的 local 表示“本机配置”，不表示本地区块链；交易仍发送到 Sepolia。
-
-你可以任选一种方式准备配置：
-
-- **直接新建：**在项目根目录（与 package.json 同一层）新建 `.env.local`，粘贴下面的内容。不需要先有 `.env.example`。
-- **复制模板：**复制 `.env.example`，把副本命名为 `.env.local`。这样可以少打几个配置项，不是必须的步骤。
-
-复制模板时，macOS/Linux 可以运行：
-
-```bash
-cp .env.example .env.local
-```
-
-Windows PowerShell 可以运行：
-
-```powershell
-Copy-Item .env.example .env.local
-```
-
-无论选哪种方式，最终 `.env.local` 内容都是：
+在项目根目录创建 `.env.local`。可以从 `.env.example` 复制，也可以直接粘贴以下配置，让本地网页连接到和线上演示相同的合约。
 
 ```dotenv
-VITE_CONTRACT_ADDRESS=
-VITE_SEPOLIA_RPC_URL=
+VITE_CONTRACT_ADDRESS=0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F
+VITE_SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
 ```
 
-把真实的 Sepolia 合约地址填在第一行等号后。第二行先留空，网页会通过 MetaMask 读取 Sepolia 数据。
+该 Sepolia 实例的成果提交和审批窗口各为 10 分钟。`VITE_SEPOLIA_RPC_URL` 用于只读浏览，本地留空时，网页通过已切到 Sepolia 的 MetaMask 读取。保存配置后启动或重启 `npm run dev`，在 Explore 简介下方核对合约地址。
 
-**没有 `.env.example` 也能测试；只要网页能读到正确的合约地址即可。** 如果尚未配置地址，`npm run dev` 仍能打开网页、检查外观，但无法创建项目、出资、审批或提款。
-
-按 Ctrl+C 停止原来的网页，再运行：
-
-```bash
-npm run dev
-```
-
-在浏览器打开网页，MetaMask 切到 Sepolia，点击 **Connect MetaMask**。未配置提示应消失，页面底部合约链接应指向正确地址。
-
-组员可以共用同一个已部署合约，但每个人都要配置自己的 `.env.local`，测试时创建不同项目，避免互相影响。合约源码没有改动时，现有 ABI 可以直接使用。
-
-**不要在文件中填写私钥或助记词，不要上传 `.env.local`。**
+前端的 `VITE_*` 配置会随构建发送到浏览器，请只填公开信息。`.env.local` 已加入 Git 忽略规则。
 
 ## 5. 手动测试：完成一次成功流程
 
@@ -206,7 +167,7 @@ npm run dev
 ## 7. 其他命令和常见问题
 
 ```bash
-npm test                  # 全部测试：合约状态测试 20 项 + 前端单元测试 71 项
+npm test                  # 运行合约状态测试和前端单元测试
 npm run test:contract     # 只跑合约状态测试
 npm run test:unit         # 只跑前端单元测试
 npm run verify:deployment # 只读核对现有 Sepolia 合约，成功时输出 full-match
@@ -215,7 +176,9 @@ npm run compile:contract  # 修改 Solidity 后重新生成 ABI
 npm run format:check      # 基础格式检查：尾随空白、Tab 缩进、末尾换行、行尾混用、JSON 有效性
 ```
 
-向 `main` 提交 PR 时，GitHub Actions 会自动执行 `npm ci`、`npm run format:check`、`npm test` 和 `npm run build`（`.github/workflows/ci.yml`）。`quality-gate` 已设为 `main` 的必需检查，未通过不能合并；推送到 main 也会跑同一套检查。格式检查只报告不修改文件，按提示手动修正后重新提交即可。
+向 `main` 提交 PR 或推送到 `main` 时，GitHub Actions 会安装依赖、检查格式、运行测试并构建前端。PR 必须通过 `quality-gate` 才能合并。`main` 通过检查后，CI 将以 `/dapp/` 为基础路径构建的 `dist` 发布到 GitHub Pages。
+
+首次启用时，在仓库 **Settings → Pages** 将 **Source** 设为 **GitHub Actions**。再到 **Settings → Secrets and variables → Actions → Variables** 新建第 4 节的两个仓库变量。合并后在 **Actions → CI → Deploy to GitHub Pages** 查看网址。也可以手动在 `main` 运行 **CI** 重新发布。
 
 新增测试依赖后先运行一次 `npm ci`。`npm test` 现在跑两部分：合约状态测试在进程内的虚拟环境执行签名交易，初始化资金、部署合约并连续操作，无需 MetaMask、RPC 或测试 ETH，每次从干净状态开始，两套编译配置都在 Osaka VM 中运行，分别覆盖仓库默认构建和现有部署的复现构建；前端单元测试只跑纯函数和模拟钱包，不读 `.env.local`、不连网、不依赖当前时间，因此结果稳定可复跑。React 组件级的回归测试尚未接入，`tests/helpers/fake-wallet.mjs` 为下一步准备了可复用的钱包模拟器。
 
@@ -234,6 +197,6 @@ npm run format:check      # 基础格式检查：尾随空白、Tab 缩进、末
 | 余额不足 | A、B 都需要测试 ETH 支付 gas。 |
 | 切换账户后按钮不对 | 核对连接地址，刷新；必要时重新连接正确账户。 |
 
-上传 GitHub 时，只上传源码、README 和配置模板。不要上传 `node_modules/`、`dist/`、`artifacts/`、`.git/`、`.DS_Store`、`.env.local` 或秘密信息。开发使用 `milestonefunddemo` 分支，不修改 main。
+开发时从 `main` 新建分支，通过 PR 合并。仓库保留源码、README 和配置模板，前端构建产物由 CI 发布。
 
 本项目仅面向电脑浏览器。**真实 Remix/Sepolia 手动验收仍需组员执行。** 首笔成功的超时退款将当时未释放的托管余额固定为退款池。每人按「原始出资 × 固定退款池 ÷ 总筹款」领取，先后顺序不影响金额。每笔退款向下取整到 wei，无法按比例分配的余数留在托管账本中。前端直接显示合约返回的可领金额。
