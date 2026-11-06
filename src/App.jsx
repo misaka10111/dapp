@@ -132,9 +132,7 @@ function DetailPlaceholder({ onPick }) {
   );
 }
 
-// Which contract am I looking at? Cheap to answer, and it fills the gap under
-// the list when the detail rail is taller than the cards.
-function ContractCard({ count }) {
+function ContractInfo() {
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
@@ -147,33 +145,24 @@ function ContractCard({ count }) {
   }
   if (!CONFIGURED) return null;
   return (
-    <section className="panel contract-card" aria-label="Contract information">
-      <div className="contract-head">
-        <p className="eyebrow">Contract</p>
-        <span className="network">
-          <i />
-          Sepolia
-        </span>
+    <div className="contract-info" role="group" aria-label="Sepolia contract">
+      <div className="contract-identity">
+        <span className="contract-label">Sepolia contract</span>
+        <code className="contract-address">{CONTRACT_ADDRESS}</code>
       </div>
-      <code className="contract-address">{CONTRACT_ADDRESS}</code>
-      <div className="contract-foot">
-        <span>
-          {count.toString()} project{count === 1n ? "" : "s"} on chain
-        </span>
-        <span className="contract-actions">
-          <button className="ghost tiny" onClick={copy}>
-            {copied ? "Copied ✓" : "Copy"}
-          </button>
-          <a
-            href={`${EXPLORER}/address/${CONTRACT_ADDRESS}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Etherscan ↗
-          </a>
-        </span>
+      <div className="contract-actions">
+        <button type="button" className="ghost tiny" onClick={copy}>
+          {copied ? "Copied ✓" : "Copy address"}
+        </button>
+        <a
+          href={`${EXPLORER}/address/${CONTRACT_ADDRESS}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Etherscan ↗
+        </a>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -492,24 +481,32 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
           </p>
         ) : (
           <form className="contribute-form" onSubmit={contribute}>
-            <label>
-              Support this project · {eth(remainingTarget)} ETH still needed
-              <input
-                name="amount"
-                aria-label="Contribution ETH"
-                inputMode="decimal"
-                placeholder={eth(remainingTarget)}
-                required
-                disabled={!ready || busy}
-              />
-            </label>
-            <button className="primary" disabled={!ready || busy}>
-              Contribute ↗
-            </button>
-            <p className="form-note tight">
-              Contributions are capped at the target: anything above the
-              remaining {eth(remainingTarget)} ETH is returned in the same
-              transaction.
+            <div className="contribute-heading">
+              <label htmlFor="contribution-amount">Contribution amount</label>
+              <span className="contribute-remaining">
+                {eth(remainingTarget)} ETH remaining
+              </span>
+            </div>
+            <div className="contribute-entry">
+              <div className="contribute-amount">
+                <input
+                  id="contribution-amount"
+                  name="amount"
+                  aria-label="Contribution amount in ETH"
+                  aria-describedby="contribution-limit"
+                  inputMode="decimal"
+                  placeholder={eth(remainingTarget)}
+                  required
+                  disabled={!ready || busy}
+                />
+                <span aria-hidden="true">ETH</span>
+              </div>
+              <button type="submit" className="primary" disabled={!ready || busy}>
+                Contribute <span aria-hidden="true">↗</span>
+              </button>
+            </div>
+            <p id="contribution-limit" className="form-note">
+              Any excess is returned in the same transaction.
             </p>
           </form>
         ))}
@@ -1034,7 +1031,7 @@ export default function App() {
   // On wide screens it is a sticky rail and must not steal the scroll position.
   useEffect(() => {
     if (!activeDetail || !detailRef.current) return;
-    if (!window.matchMedia("(max-width: 1080px)").matches) return;
+    if (!window.matchMedia("(max-width: 1120px)").matches) return;
     detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [activeDetail?.id]);
 
@@ -1211,6 +1208,7 @@ export default function App() {
                   backers approve with the weight they contributed, and funds
                   unlock 40% / 60% — no platform in the middle.
                 </p>
+                <ContractInfo />
               </div>
               <div className="flow">
                 <div className="flow-step">
@@ -1484,11 +1482,13 @@ export default function App() {
                       </button>
                     </div>
                   )}
-
-                  {!loadError && <ContractCard count={count} />}
                 </div>
 
-                <aside className="detail-column" ref={detailRef}>
+                <aside
+                  key={activeDetail?.id ?? "placeholder"}
+                  className="detail-column"
+                  ref={detailRef}
+                >
                   {activeDetail ? (
                     <ProjectDetails
                       key={`${activeDetail.id}-${account}`}
