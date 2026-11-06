@@ -720,35 +720,41 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
                 </button>
               )}
               {current && m.approved && !m.withdrawn && (
-                <>
-                  {isCreator && stageBudget > 0n && (
+                isCreator ? (
+                  <>
+                    {stageBudget > 0n && (
+                      <button
+                        className="primary"
+                        disabled={!ready || busy}
+                        onClick={() =>
+                          transact(`Release and withdraw milestone ${index + 1}`, (c) =>
+                            c.withdrawMilestone(id, index),
+                          )
+                        }
+                      >
+                        Release &amp; withdraw · {eth(stageBudget)} ETH
+                      </button>
+                    )}
                     <button
-                      className="primary"
+                      className={stageBudget > 0n ? "ghost" : "primary"}
                       disabled={!ready || busy}
                       onClick={() =>
-                        transact(`Release and withdraw milestone ${index + 1}`, (c) =>
-                          c.withdrawMilestone(id, index),
+                        transact(`Release milestone ${index + 1}`, (c) =>
+                          c.releaseMilestone(id, index),
                         )
                       }
                     >
-                      Release &amp; withdraw · {eth(stageBudget)} ETH
+                      {stageBudget === 0n ? "Release milestone · 0 ETH" : "Release to creator balance"}
                     </button>
-                  )}
-                  <button
-                    className={isCreator && stageBudget > 0n ? "ghost" : "primary"}
-                    disabled={!ready || busy}
-                    onClick={() =>
-                      transact(`Release milestone ${index + 1}`, (c) =>
-                        c.releaseMilestone(id, index),
-                      )
-                    }
-                  >
-                    {stageBudget === 0n ? "Release milestone · 0 ETH" : "Release to creator balance"}
-                  </button>
+                    <p className="form-note tight">
+                      Release advances the project and credits any payout to your balance.
+                    </p>
+                  </>
+                ) : (
                   <p className="form-note tight">
-                    Anyone can release this stage. Only the creator can withdraw its payout.
+                    Waiting for the creator to release this milestone.
                   </p>
-                </>
+                )
               )}
               {refundState === "unavailable" && (
                 <p className="form-note">
