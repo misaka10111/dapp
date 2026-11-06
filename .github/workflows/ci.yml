@@ -12,7 +12,7 @@ on:
 # A new push to the same PR cancels the previous run instead of queueing behind it.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -42,5 +42,46 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Build
-        run: npm run build
+      - name: Build for GitHub Pages
+        env:
+          VITE_CONTRACT_ADDRESS: ${{ vars.VITE_CONTRACT_ADDRESS }}
+          VITE_SEPOLIA_RPC_URL: ${{ vars.VITE_SEPOLIA_RPC_URL }}
+        run: |
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            node --input-type=module <<'JS'
+          import { resolveConfig } from "./src/contract.js";
+          const { configured, rpcUrl } = resolveConfig(
+            process.env.VITE_CONTRACT_ADDRESS,
+            process.env.VITE_SEPOLIA_RPC_URL,
+          );
+          if (!configured) {
+            throw new Error("Set VITE_CONTRACT_ADDRESS in repository Actions variables.");
+          }
+          if (!URL.canParse(rpcUrl) || new URL(rpcUrl).protocol !== "https:") {
+            throw new Error("Set VITE_SEPOLIA_RPC_URL to a public HTTPS Sepolia RPC URL.");
+          }
+          JS
+          fi
+          npm run build -- --base=/dapp/
+
+      - name: Upload GitHub Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    if: github.ref == 'refs/heads/main'
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
