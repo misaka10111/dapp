@@ -1,0 +1,905 @@
+
+> dapp@1.0.0 test
+> node --test "tests/**/*.test.mjs" --test-reporter=tap
+
+TAP version 13
+# Subtest: identical runtime is a full match without inventing an immutable substitution
+ok 1 - identical runtime is a full match without inventing an immutable substitution
+  ---
+  duration_ms: 0.772125
+  type: 'test'
+  ...
+# Subtest: compiler-declared immutable slots accept the complete value 1
+ok 2 - compiler-declared immutable slots accept the complete value 1
+  ---
+  duration_ms: 0.365334
+  type: 'test'
+  ...
+# Subtest: compiler-declared immutable slots accept the complete value 256
+ok 3 - compiler-declared immutable slots accept the complete value 256
+  ---
+  duration_ms: 0.20525
+  type: 'test'
+  ...
+# Subtest: compiler-declared immutable slots accept the complete value 600
+ok 4 - compiler-declared immutable slots accept the complete value 600
+  ---
+  duration_ms: 0.212917
+  type: 'test'
+  ...
+# Subtest: compiler-declared immutable slots accept the complete value 604800
+ok 5 - compiler-declared immutable slots accept the complete value 604800
+  ---
+  duration_ms: 0.193791
+  type: 'test'
+  ...
+# Subtest: different immutable variables may have different values
+ok 6 - different immutable variables may have different values
+  ---
+  duration_ms: 0.146
+  type: 'test'
+  ...
+# Subtest: repeated references to the same immutable must contain the same value
+ok 7 - repeated references to the same immutable must contain the same value
+  ---
+  duration_ms: 0.208875
+  type: 'test'
+  ...
+# Subtest: arbitrary zero-byte changes outside compiler references are not immutable substitutions
+ok 8 - arbitrary zero-byte changes outside compiler references are not immutable substitutions
+  ---
+  duration_ms: 0.377125
+  type: 'test'
+  ...
+# Subtest: zero-byte differences without compiler references cannot pass verification
+ok 9 - zero-byte differences without compiler references cannot pass verification
+  ---
+  duration_ms: 0.310291
+  type: 'test'
+  ...
+# Subtest: a metadata-only mismatch remains executable-only rather than becoming an immutable match
+ok 10 - a metadata-only mismatch remains executable-only rather than becoming an immutable match
+  ---
+  duration_ms: 0.333084
+  type: 'test'
+  ...
+# Subtest: immutable substitution does not hide a metadata mismatch
+ok 11 - immutable substitution does not hide a metadata mismatch
+  ---
+  duration_ms: 0.193667
+  type: 'test'
+  ...
+# Subtest: invalid or overlapping immutable ranges cannot authorize a match
+ok 12 - invalid or overlapping immutable ranges cannot authorize a match
+  ---
+  duration_ms: 0.605542
+  type: 'test'
+  ...
+# Subtest: saved Sepolia runtime matches declared immutable values but not the saved compiler metadata
+ok 13 - saved Sepolia runtime matches declared immutable values but not the saved compiler metadata
+  ---
+  duration_ms: 1.921458
+  type: 'test'
+  ...
+# Subtest: repository-default: two stages, strict majority, independent votes and 40/60 payments
+ok 14 - repository-default: two stages, strict majority, independent votes and 40/60 payments
+  ---
+  duration_ms: 250.167042
+  type: 'test'
+  ...
+# Subtest: repository-default: contributions cap at the target and refund the excess; zero first payout preserves every wei
+ok 15 - repository-default: contributions cap at the target and refund the excess; zero first payout preserves every wei
+  ---
+  duration_ms: 160.303042
+  type: 'test'
+  ...
+# Subtest: repository-default: interleaved projects isolate escrow, cumulative contributions and refunds
+ok 16 - repository-default: interleaved projects isolate escrow, cumulative contributions and refunds
+  ---
+  duration_ms: 146.289042
+  type: 'test'
+  ...
+# Subtest: repository-default: exact deadline closes contributions and requires explicit finalization
+ok 17 - repository-default: exact deadline closes contributions and requires explicit finalization
+  ---
+  duration_ms: 45.957917
+  type: 'test'
+  ...
+# Subtest: repository-default: rejected ETH payments roll back withdrawal and refund accounting
+ok 18 - repository-default: rejected ETH payments roll back withdrawal and refund accounting
+  ---
+  duration_ms: 95.364167
+  type: 'test'
+  ...
+# Subtest: repository-default: anyone can release two approved milestones and only the creator can collect
+ok 19 - repository-default: anyone can release two approved milestones and only the creator can collect
+  ---
+  duration_ms: 95.411833
+  type: 'test'
+  ...
+# Subtest: repository-default: a rejecting creator can redirect released funds after the next stage expires
+ok 20 - repository-default: a rejecting creator can redirect released funds after the next stage expires
+  ---
+  duration_ms: 76.314375
+  type: 'test'
+  ...
+# Subtest: repository-default: a direct payout leaves earlier credited funds available
+ok 21 - repository-default: a direct payout leaves earlier credited funds available
+  ---
+  duration_ms: 58.05125
+  type: 'test'
+  ...
+# Subtest: repository-default: approval timeout refunds both backers in either claim order
+ok 22 - repository-default: approval timeout refunds both backers in either claim order
+  ---
+  duration_ms: 168.833375
+  type: 'test'
+  ...
+# Subtest: repository-default: stage-two submission expiry refunds fixed shares of the unpaid escrow
+ok 23 - repository-default: stage-two submission expiry refunds fixed shares of the unpaid escrow
+  ---
+  duration_ms: 73.404458
+  type: 'test'
+  ...
+# Subtest: repository-default: an expiry refund that cannot be delivered can be retried
+ok 24 - repository-default: an expiry refund that cannot be delivered can be retried
+  ---
+  duration_ms: 57.679209
+  type: 'test'
+  ...
+# Subtest: repository-default: an approved milestone cannot be refunded
+ok 25 - repository-default: an approved milestone cannot be refunded
+  ---
+  duration_ms: 37.975125
+  type: 'test'
+  ...
+# Subtest: repository-default: submission timeout protects backers when the creator never submits
+ok 26 - repository-default: submission timeout protects backers when the creator never submits
+  ---
+  duration_ms: 43.001
+  type: 'test'
+  ...
+# Subtest: repository-default: a zero first-stage payout skips the ETH transfer
+ok 27 - repository-default: a zero first-stage payout skips the ETH transfer
+  ---
+  duration_ms: 71.694709
+  type: 'test'
+  ...
+# Subtest: repository-default: timeouts come from the constructor, so a demo can expire quickly
+ok 28 - repository-default: timeouts come from the constructor, so a demo can expire quickly
+  ---
+  duration_ms: 40.616042
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: two stages, strict majority, independent votes and 40/60 payments
+ok 29 - sepolia-reproduction: two stages, strict majority, independent votes and 40/60 payments
+  ---
+  duration_ms: 154.698666
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: contributions cap at the target and refund the excess; zero first payout preserves every wei
+ok 30 - sepolia-reproduction: contributions cap at the target and refund the excess; zero first payout preserves every wei
+  ---
+  duration_ms: 180.334042
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: interleaved projects isolate escrow, cumulative contributions and refunds
+ok 31 - sepolia-reproduction: interleaved projects isolate escrow, cumulative contributions and refunds
+  ---
+  duration_ms: 156.383458
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: exact deadline closes contributions and requires explicit finalization
+ok 32 - sepolia-reproduction: exact deadline closes contributions and requires explicit finalization
+  ---
+  duration_ms: 47.048125
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: rejected ETH payments roll back withdrawal and refund accounting
+ok 33 - sepolia-reproduction: rejected ETH payments roll back withdrawal and refund accounting
+  ---
+  duration_ms: 101.693125
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: anyone can release two approved milestones and only the creator can collect
+ok 34 - sepolia-reproduction: anyone can release two approved milestones and only the creator can collect
+  ---
+  duration_ms: 100.014083
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: a rejecting creator can redirect released funds after the next stage expires
+ok 35 - sepolia-reproduction: a rejecting creator can redirect released funds after the next stage expires
+  ---
+  duration_ms: 78.878042
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: a direct payout leaves earlier credited funds available
+ok 36 - sepolia-reproduction: a direct payout leaves earlier credited funds available
+  ---
+  duration_ms: 63.508084
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: approval timeout refunds both backers in either claim order
+ok 37 - sepolia-reproduction: approval timeout refunds both backers in either claim order
+  ---
+  duration_ms: 206.577042
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: stage-two submission expiry refunds fixed shares of the unpaid escrow
+ok 38 - sepolia-reproduction: stage-two submission expiry refunds fixed shares of the unpaid escrow
+  ---
+  duration_ms: 86.853542
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: an expiry refund that cannot be delivered can be retried
+ok 39 - sepolia-reproduction: an expiry refund that cannot be delivered can be retried
+  ---
+  duration_ms: 65.1235
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: an approved milestone cannot be refunded
+ok 40 - sepolia-reproduction: an approved milestone cannot be refunded
+  ---
+  duration_ms: 37.731625
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: submission timeout protects backers when the creator never submits
+ok 41 - sepolia-reproduction: submission timeout protects backers when the creator never submits
+  ---
+  duration_ms: 41.808958
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: a zero first-stage payout skips the ETH transfer
+ok 42 - sepolia-reproduction: a zero first-stage payout skips the ETH transfer
+  ---
+  duration_ms: 75.989625
+  type: 'test'
+  ...
+# Subtest: sepolia-reproduction: timeouts come from the constructor, so a demo can expire quickly
+ok 43 - sepolia-reproduction: timeouts come from the constructor, so a demo can expire quickly
+  ---
+  duration_ms: 42.205666
+  type: 'test'
+  ...
+# Subtest: deadline display
+    # Subtest: counts down to seconds and waits for an on-chain cutoff
+    ok 1 - counts down to seconds and waits for an on-chain cutoff
+      ---
+      duration_ms: 0.494417
+      type: 'test'
+      ...
+    # Subtest: shows a closed window as soon as the snapshot says it is closed
+    ok 2 - shows a closed window as soon as the snapshot says it is closed
+      ---
+      duration_ms: 0.048166
+      type: 'test'
+      ...
+    1..2
+ok 44 - deadline display
+  ---
+  duration_ms: 0.89925
+  type: 'suite'
+  ...
+# Subtest: expiryRefundState
+    # Subtest: uses each unrefunded backer's on-chain quote after the first claim
+    ok 1 - uses each unrefunded backer's on-chain quote after the first claim
+      ---
+      duration_ms: 0.059042
+      type: 'test'
+      ...
+    # Subtest: distinguishes a pending window, an unavailable quote and a zero share
+    ok 2 - distinguishes a pending window, an unavailable quote and a zero share
+      ---
+      duration_ms: 0.035459
+      type: 'test'
+      ...
+    1..2
+ok 45 - expiryRefundState
+  ---
+  duration_ms: 0.21525
+  type: 'suite'
+  ...
+# Subtest: shortAddress
+    # Subtest: keeps the first six and last four characters
+    ok 1 - keeps the first six and last four characters
+      ---
+      duration_ms: 0.081625
+      type: 'test'
+      ...
+    # Subtest: returns an empty string for missing values
+    ok 2 - returns an empty string for missing values
+      ---
+      duration_ms: 0.207166
+      type: 'test'
+      ...
+    # Subtest: keeps its current shape for inputs shorter than the window
+    ok 3 - keeps its current shape for inputs shorter than the window
+      ---
+      duration_ms: 0.198375
+      type: 'test'
+      ...
+    1..3
+ok 46 - shortAddress
+  ---
+  duration_ms: 0.698417
+  type: 'suite'
+  ...
+# Subtest: eth
+    # Subtest: formats whole and fractional ether without float drift
+    ok 1 - formats whole and fractional ether without float drift
+      ---
+      duration_ms: 0.352791
+      type: 'test'
+      ...
+    # Subtest: renders the 40/60 payout amounts exactly
+    ok 2 - renders the 40/60 payout amounts exactly
+      ---
+      duration_ms: 0.159084
+      type: 'test'
+      ...
+    # Subtest: falls back to zero when the value is missing
+    ok 3 - falls back to zero when the value is missing
+      ---
+      duration_ms: 0.165375
+      type: 'test'
+      ...
+    1..3
+ok 47 - eth
+  ---
+  duration_ms: 0.791417
+  type: 'suite'
+  ...
+# Subtest: percent
+    # Subtest: returns zero when there is nothing to compare against
+    ok 1 - returns zero when there is nothing to compare against
+      ---
+      duration_ms: 0.056042
+      type: 'test'
+      ...
+    # Subtest: rounds down to two decimals after bigint division
+    ok 2 - rounds down to two decimals after bigint division
+      ---
+      duration_ms: 0.029333
+      type: 'test'
+      ...
+    # Subtest: keeps exact values exact
+    ok 3 - keeps exact values exact
+      ---
+      duration_ms: 0.024167
+      type: 'test'
+      ...
+    # Subtest: allows overshoot above 100 for overfunded projects
+    ok 4 - allows overshoot above 100 for overfunded projects
+      ---
+      duration_ms: 0.021458
+      type: 'test'
+      ...
+    1..4
+ok 48 - percent
+  ---
+  duration_ms: 0.174209
+  type: 'suite'
+  ...
+# Subtest: budget
+    # Subtest: splits 40/60 for a clean total
+    ok 1 - splits 40/60 for a clean total
+      ---
+      duration_ms: 0.044791
+      type: 'test'
+      ...
+    # Subtest: keeps the remainder in stage two when 40% does not divide evenly
+    ok 2 - keeps the remainder in stage two when 40% does not divide evenly
+      ---
+      duration_ms: 0.020833
+      type: 'test'
+      ...
+    # Subtest: never loses or invents a wei
+    ok 3 - never loses or invents a wei
+      ---
+      duration_ms: 0.067042
+      type: 'test'
+      ...
+    # Subtest: handles the smallest possible escrow
+    ok 4 - handles the smallest possible escrow
+      ---
+      duration_ms: 0.021167
+      type: 'test'
+      ...
+    1..4
+ok 49 - budget
+  ---
+  duration_ms: 0.189125
+  type: 'suite'
+  ...
+# Subtest: positiveEth
+    # Subtest: parses valid amounts into wei
+    ok 1 - parses valid amounts into wei
+      ---
+      duration_ms: 0.261333
+      type: 'test'
+      ...
+    # Subtest: rejects zero after parsing
+    ok 2 - rejects zero after parsing
+      ---
+      duration_ms: 0.204542
+      type: 'test'
+      ...
+    # Subtest: rejects anything that is not a plain decimal
+    ok 3 - rejects anything that is not a plain decimal
+      ---
+      duration_ms: 0.124292
+      type: 'test'
+      ...
+    1..3
+ok 50 - positiveEth
+  ---
+  duration_ms: 0.620958
+  type: 'suite'
+  ...
+# Subtest: safeUrl
+    # Subtest: accepts http and https links
+    ok 1 - accepts http and https links
+      ---
+      duration_ms: 0.063541
+      type: 'test'
+      ...
+    # Subtest: keeps path, query and hash intact
+    ok 2 - keeps path, query and hash intact
+      ---
+      duration_ms: 0.023542
+      type: 'test'
+      ...
+    # Subtest: normalises scheme and host case
+    ok 3 - normalises scheme and host case
+      ---
+      duration_ms: 0.024209
+      type: 'test'
+      ...
+    # Subtest: rejects non-http schemes and malformed input
+    ok 4 - rejects non-http schemes and malformed input
+      ---
+      duration_ms: 0.039625
+      type: 'test'
+      ...
+    1..4
+ok 51 - safeUrl
+  ---
+  duration_ms: 0.185542
+  type: 'suite'
+  ...
+# Subtest: matchesFilter
+    # Subtest: shows everything for the default filter
+    ok 1 - shows everything for the default filter
+      ---
+      duration_ms: 0.061083
+      type: 'test'
+      ...
+    # Subtest: mine compares the creator case-insensitively
+    ok 2 - mine compares the creator case-insensitively
+      ---
+      duration_ms: 0.032042
+      type: 'test'
+      ...
+    # Subtest: backed requires a non-zero contribution
+    ok 3 - backed requires a non-zero contribution
+      ---
+      duration_ms: 0.031542
+      type: 'test'
+      ...
+    # Subtest: review needs an open, unapproved milestone the user backed
+    ok 4 - review needs an open, unapproved milestone the user backed
+      ---
+      duration_ms: 0.04475
+      type: 'test'
+      ...
+    1..4
+ok 52 - matchesFilter
+  ---
+  duration_ms: 0.203167
+  type: 'suite'
+  ...
+# Subtest: errorMessage
+    # Subtest: maps code 4001
+    ok 1 - maps code 4001
+      ---
+      duration_ms: 0.1415
+      type: 'test'
+      ...
+    # Subtest: maps ACTION_REJECTED
+    ok 2 - maps ACTION_REJECTED
+      ---
+      duration_ms: 0.021541
+      type: 'test'
+      ...
+    # Subtest: maps nested 4001
+    ok 3 - maps nested 4001
+      ---
+      duration_ms: 0.017167
+      type: 'test'
+      ...
+    # Subtest: maps insufficient funds
+    ok 4 - maps insufficient funds
+      ---
+      duration_ms: 0.016416
+      type: 'test'
+      ...
+    # Subtest: maps unknown chain
+    ok 5 - maps unknown chain
+      ---
+      duration_ms: 0.016708
+      type: 'test'
+      ...
+    # Subtest: maps nested unknown chain
+    ok 6 - maps nested unknown chain
+      ---
+      duration_ms: 0.016209
+      type: 'test'
+      ...
+    # Subtest: maps network error
+    ok 7 - maps network error
+      ---
+      duration_ms: 0.016167
+      type: 'test'
+      ...
+    # Subtest: maps server error
+    ok 8 - maps server error
+      ---
+      duration_ms: 0.029084
+      type: 'test'
+      ...
+    # Subtest: maps timeout
+    ok 9 - maps timeout
+      ---
+      duration_ms: 0.018583
+      type: 'test'
+      ...
+    # Subtest: maps reason wins
+    ok 10 - maps reason wins
+      ---
+      duration_ms: 0.02425
+      type: 'test'
+      ...
+    # Subtest: maps shortMessage next
+    ok 11 - maps shortMessage next
+      ---
+      duration_ms: 0.021791
+      type: 'test'
+      ...
+    # Subtest: maps nested message next
+    ok 12 - maps nested message next
+      ---
+      duration_ms: 0.021959
+      type: 'test'
+      ...
+    # Subtest: maps plain message last
+    ok 13 - maps plain message last
+      ---
+      duration_ms: 0.055125
+      type: 'test'
+      ...
+    # Subtest: falls back to a generic message
+    ok 14 - falls back to a generic message
+      ---
+      duration_ms: 0.028292
+      type: 'test'
+      ...
+    # Subtest: survives an ethers-style nested rejection
+    ok 15 - survives an ethers-style nested rejection
+      ---
+      duration_ms: 0.037792
+      type: 'test'
+      ...
+    1..15
+ok 53 - errorMessage
+  ---
+  duration_ms: 0.583458
+  type: 'suite'
+  ...
+# Subtest: module defaults without Vite env
+    # Subtest: node never reads .env.local, so the module starts unconfigured
+    ok 1 - node never reads .env.local, so the module starts unconfigured
+      ---
+      duration_ms: 0.234333
+      type: 'test'
+      ...
+    1..1
+ok 54 - module defaults without Vite env
+  ---
+  duration_ms: 0.605667
+  type: 'suite'
+  ...
+# Subtest: resolveConfig
+    # Subtest: accepts a checksummed address unchanged
+    ok 1 - accepts a checksummed address unchanged
+      ---
+      duration_ms: 0.91225
+      type: 'test'
+      ...
+    # Subtest: restores checksum casing when the address was rewritten
+    ok 2 - restores checksum casing when the address was rewritten
+      ---
+      duration_ms: 0.792875
+      type: 'test'
+      ...
+    # Subtest: trims both inputs
+    ok 3 - trims both inputs
+      ---
+      duration_ms: 0.376417
+      type: 'test'
+      ...
+    # Subtest: treats the zero address as not configured
+    ok 4 - treats the zero address as not configured
+      ---
+      duration_ms: 0.429334
+      type: 'test'
+      ...
+    # Subtest: reports unusable input instead of silently passing it through
+    ok 5 - reports unusable input instead of silently passing it through
+      ---
+      duration_ms: 0.181625
+      type: 'test'
+      ...
+    # Subtest: keeps an empty address free of errors
+    ok 6 - keeps an empty address free of errors
+      ---
+      duration_ms: 0.119167
+      type: 'test'
+      ...
+    # Subtest: tolerates missing arguments
+    ok 7 - tolerates missing arguments
+      ---
+      duration_ms: 0.41425
+      type: 'test'
+      ...
+    1..7
+ok 55 - resolveConfig
+  ---
+  duration_ms: 3.431125
+  type: 'suite'
+  ...
+# Subtest: injectedWallet
+    # Subtest: returns null when no wallet is installed
+    ok 1 - returns null when no wallet is installed
+      ---
+      duration_ms: 0.121667
+      type: 'test'
+      ...
+    # Subtest: ignores a wallet that is not MetaMask
+    ok 2 - ignores a wallet that is not MetaMask
+      ---
+      duration_ms: 0.181708
+      type: 'test'
+      ...
+    # Subtest: finds MetaMask inside a multi-wallet group
+    ok 3 - finds MetaMask inside a multi-wallet group
+      ---
+      duration_ms: 0.053167
+      type: 'test'
+      ...
+    # Subtest: returns null when a group has no MetaMask entry
+    ok 4 - returns null when a group has no MetaMask entry
+      ---
+      duration_ms: 0.033
+      type: 'test'
+      ...
+    1..4
+ok 56 - injectedWallet
+  ---
+  duration_ms: 0.513625
+  type: 'suite'
+  ...
+# Subtest: browserProvider
+    # Subtest: explains what to install when no wallet exists
+    ok 1 - explains what to install when no wallet exists
+      ---
+      duration_ms: 0.148792
+      type: 'test'
+      ...
+    # Subtest: wraps the injected MetaMask provider
+    ok 2 - wraps the injected MetaMask provider
+      ---
+      duration_ms: 0.157292
+      type: 'test'
+      ...
+    1..2
+ok 57 - browserProvider
+  ---
+  duration_ms: 0.335541
+  type: 'suite'
+  ...
+# Subtest: readProvider
+    # Subtest: uses the configured RPC endpoint when present
+    ok 1 - uses the configured RPC endpoint when present
+      ---
+      duration_ms: 0.374667
+      type: 'test'
+      ...
+    # Subtest: falls back to the wallet when no RPC endpoint is configured
+    ok 2 - falls back to the wallet when no RPC endpoint is configured
+      ---
+      duration_ms: 0.038334
+      type: 'test'
+      ...
+    # Subtest: fails with the setup hint when there is neither RPC nor wallet
+    ok 3 - fails with the setup hint when there is neither RPC nor wallet
+      ---
+      duration_ms: 0.039208
+      type: 'test'
+      ...
+    1..3
+ok 58 - readProvider
+  ---
+  duration_ms: 0.519875
+  type: 'suite'
+  ...
+# Subtest: checkedContract
+    # Subtest: refuses to load an unconfigured contract
+    ok 1 - refuses to load an unconfigured contract
+      ---
+      duration_ms: 0.131792
+      type: 'test'
+      ...
+    # Subtest: surfaces the invalid-address reason
+    ok 2 - surfaces the invalid-address reason
+      ---
+      duration_ms: 0.570792
+      type: 'test'
+      ...
+    # Subtest: rejects a network other than Sepolia
+    ok 3 - rejects a network other than Sepolia
+      ---
+      duration_ms: 0.086417
+      type: 'test'
+      ...
+    # Subtest: rejects an address with no deployed code
+    ok 4 - rejects an address with no deployed code
+      ---
+      duration_ms: 0.068209
+      type: 'test'
+      ...
+    # Subtest: binds the contract to the configured address
+    ok 5 - binds the contract to the configured address
+      ---
+      duration_ms: 0.525292
+      type: 'test'
+      ...
+    # Subtest: checks the address from the injected config, not the module constant
+    ok 6 - checks the address from the injected config, not the module constant
+      ---
+      duration_ms: 0.640833
+      type: 'test'
+      ...
+    1..6
+ok 59 - checkedContract
+  ---
+  duration_ms: 2.098084
+  type: 'suite'
+  ...
+# Subtest: readExpiredRefundAmount
+    # Subtest: reads the contract quote for the selected project and account at the snapshot block
+    ok 1 - reads the contract quote for the selected project and account at the snapshot block
+      ---
+      duration_ms: 0.115083
+      type: 'test'
+      ...
+    # Subtest: handles older deployments whose quote selector returns no data
+    ok 2 - handles older deployments whose quote selector returns no data
+      ---
+      duration_ms: 0.083
+      type: 'test'
+      ...
+    # Subtest: propagates RPC failures and contract reverts with a reason
+    ok 3 - propagates RPC failures and contract reverts with a reason
+      ---
+      duration_ms: 0.075708
+      type: 'test'
+      ...
+    1..3
+ok 60 - readExpiredRefundAmount
+  ---
+  duration_ms: 0.321833
+  type: 'suite'
+  ...
+# Subtest: readMilestoneWindow
+    # Subtest: decodes the deadline and open flag from the same block snapshot
+    ok 1 - decodes the deadline and open flag from the same block snapshot
+      ---
+      duration_ms: 2.024917
+      type: 'test'
+      ...
+    # Subtest: returns null when an older deployment has no window getter
+    ok 2 - returns null when an older deployment has no window getter
+      ---
+      duration_ms: 0.733833
+      type: 'test'
+      ...
+    1..2
+ok 61 - readMilestoneWindow
+  ---
+  duration_ms: 2.796542
+  type: 'suite'
+  ...
+# Subtest: refundAmountFromReceipt
+    # Subtest: uses the refund log emitted by the configured contract
+    ok 1 - uses the refund log emitted by the configured contract
+      ---
+      duration_ms: 1.739542
+      type: 'test'
+      ...
+    1..1
+ok 62 - refundAmountFromReceipt
+  ---
+  duration_ms: 1.767
+  type: 'suite'
+  ...
+# Subtest: switchToSepolia
+    # Subtest: asks for the Sepolia chain id in hex
+    ok 1 - asks for the Sepolia chain id in hex
+      ---
+      duration_ms: 0.146334
+      type: 'test'
+      ...
+    # Subtest: fails with the setup hint when no wallet exists
+    ok 2 - fails with the setup hint when no wallet exists
+      ---
+      duration_ms: 0.073834
+      type: 'test'
+      ...
+    # Subtest: propagates the 4001 rejection from MetaMask
+    ok 3 - propagates the 4001 rejection from MetaMask
+      ---
+      duration_ms: 0.061041
+      type: 'test'
+      ...
+    1..3
+ok 63 - switchToSepolia
+  ---
+  duration_ms: 0.325042
+  type: 'suite'
+  ...
+# Subtest: transaction payloads
+    # Subtest: contribute takes only the project id, value travels as override
+    ok 1 - contribute takes only the project id, value travels as override
+      ---
+      duration_ms: 0.205875
+      type: 'test'
+      ...
+    # Subtest: approveMilestone keeps the (projectId, milestoneIndex) order
+    ok 2 - approveMilestone keeps the (projectId, milestoneIndex) order
+      ---
+      duration_ms: 0.221708
+      type: 'test'
+      ...
+    # Subtest: withdrawMilestone mirrors the approval order
+    ok 3 - withdrawMilestone mirrors the approval order
+      ---
+      duration_ms: 0.157584
+      type: 'test'
+      ...
+    # Subtest: a rejected wallet request becomes the retry hint users see
+    ok 4 - a rejected wallet request becomes the retry hint users see
+      ---
+      duration_ms: 0.188166
+      type: 'test'
+      ...
+    1..4
+ok 64 - transaction payloads
+  ---
+  duration_ms: 0.829208
+  type: 'suite'
+  ...
+# Subtest: fake wallet advertises the chain ids the checks rely on
+ok 65 - fake wallet advertises the chain ids the checks rely on
+  ---
+  duration_ms: 0.055
+  type: 'test'
+  ...
+1..65
+# tests 124
+# suites 21
+# pass 124
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4715.690875

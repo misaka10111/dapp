@@ -1,10 +1,10 @@
-# 连续状态自动化测试
+# Automated Testing
 
-本测试从新部署的合约开始，通过本地签名交易逐步建立真实状态，验证前一步的结果能被后续操作正确使用。它补充 Sepolia 手动测试以及原先的 `eth_call + state override` 模拟测试。
+The contract tests start from a fresh deployment and build state through locally signed transactions, checking that later operations correctly use the results of earlier steps. They complement manual Sepolia testing and the original `eth_call + state override` simulations.
 
-## 运行
+## Run the tests
 
-在项目根目录执行：
+From the project root, run:
 
 ```powershell
 npm ci
@@ -12,37 +12,51 @@ npm test
 npm run build
 ```
 
-依赖未变化时可直接 `npm test`。执行脚本为 `tests/milestone-fund.test.mjs`，使用 Node 内置测试运行器和 EthereumJS VM，每次创建干净的内存状态。临时账户随机生成并仅存于进程内；不读取钱包密钥、不连接 RPC，不消耗 Sepolia ETH，也不操作已经验收的项目 #002/#003。
+If dependencies have not changed, run `npm test` directly. The contract test entry point, `tests/milestone-fund.test.mjs`, uses Node's built-in test runner and EthereumJS VM, creating clean in-memory state for each test. Temporary accounts are generated randomly and exist only within the process. The tests do not read wallet keys, connect to RPC, consume Sepolia ETH or modify the historical acceptance-test projects #002/#003. `npm test` also runs offline regression tests for frontend utilities, simulated wallets and the deployment verifier.
 
-## 编译和执行配置
+## Compilation and execution settings
 
-| 配置 | 编译器 | 优化 | 编译目标 | 用途 |
+| Profile | Compiler | Optimizer | Compilation target | Purpose |
 | --- | --- | --- | --- | --- |
-| repository-default | solc 0.8.24 | 开启，runs 200 | Paris | 仓库现有编译脚本的配置 |
-| sepolia-reproduction | solc 0.8.34 | 关闭，runs 200 | Osaka | 已核对的现有 Sepolia 部署配置，源码单元 MilestoneFund.sol，LF 换行 |
+| repository-default | solc 0.8.24 | Enabled, 200 runs | Paris | Compiler settings used by the repository's current compilation script and the new Sepolia instance; deployment consistency is verified separately |
+| sepolia-reproduction | solc 0.8.34 | Disabled, 200 runs | Osaka | Retains the compiler settings of the old 2026-10-22 deployment, with source unit MilestoneFund.sol and LF line endings; these settings now test the current source and do not reproduce the new deployment |
 
-两套编译配置均在 **Osaka VM / 本地 chain ID 31337** 下执行；没有声称测试了两个不同运行时硬分叉。依赖锁定为 `@ethereumjs/* 10.1.3`，Solidity 编译器分别由 `solc` 与 `solc-deployed` 提供。编译结果的 ABI 会与前端提交的 ABI 比较，防止接口过期。
+Both compilation profiles execute on **Osaka VM / local chain ID 31337**; this does not claim coverage of two different runtime hard forks. Dependencies are pinned to `@ethereumjs/* 10.1.3`, with the Solidity compilers provided by `solc` and `solc-deployed`. The compiled ABI is compared with the committed frontend ABI to detect an outdated interface.
 
-## 场景与判据
+## Scenarios and assertions
 
-5 类连续状态场景各执行两遍，共 10 项测试：
+The current contract suite contains 15 scenarios that carry state across successive transactions. Each runs under both compilation profiles, giving 30 tests:
 
-| 场景 | 关键验证 |
+| Scenario | Key assertions |
 | --- | --- |
-| 两阶段成功流程 | B 累计出资 50、C 出资 50；恰好 50% 不批准；分别放款 40/60；第二阶段票重从 0 开始，按原总出资作分母；Completed 且托管归零。穿插权限、重复提交/投票/提款和越阶段拒绝。 |
-| 超募、舍入和小额 | 目标 100、实收 101，分配 40/61；目标 1、实收 1，第一阶段允许释放 0 并推进，第二阶段释放剩余 1；达标关闭出资、不遗漏尾数。 |
-| 多项目资金隔离 | 成功项目先释放 40；失败项目两位支持者各退累计出资 25；成功项目再释放 60。每个中间状态核对合约余额等于两个项目托管总和，记录和退款标志按项目隔离。 |
-| 精确截止时间 | 截止前 1 秒可出资、不可 finalize；恰好截止时不可出资、无关账户可 finalize；单纯时间经过不会自动把存储状态变为 Failed。 |
-| 收款失败回滚 | 测试接收合约拒收 ETH，提款和退款必须回滚账目；允许收款后原操作能成功，金额、标志和阶段正确恢复。 |
+| Successful two-stage flow | B contributes a cumulative 50 and C contributes 50; exactly 50% does not approve a milestone; payouts are 40/60. Second-stage approval weight starts at 0 and uses total original contributions as the denominator. The project reaches Completed with zero escrow. Permission checks, duplicate submissions/votes/withdrawals and attempts to skip stages are interleaved with the successful flow. |
+| Contribution cap, excess refunds and small amounts | For a target of 100 and two contributions of 51, only 100 is accepted, the excess 2 is returned in the transaction, and payouts are 40/60. A target of 1 produces payouts of 0/1. Reaching the target closes funding, with no remainder lost. |
+| Fund isolation between projects | A successful project first releases 40; two backers in a failed project each reclaim their cumulative contribution of 25; the successful project then releases 60. At every intermediate step, the contract balance equals the two projects' combined escrow, and records and refund flags remain isolated by project. |
+| Exact funding deadline | One second before the deadline, contributions are allowed and finalization is rejected. At the deadline, contributions are rejected and an unrelated account can finalize. Time passing alone does not change the stored status to Failed. |
+| Rollback when a recipient rejects ETH | A test receiver rejects ETH, so withdrawals and refunds must revert their accounting changes. After receipt is enabled, retrying succeeds with correct amounts, flags and milestone state. |
+| Separate release and payout claim | Any account can release an approved milestone, crediting the creator's claimable balance without transferring ETH. Only the creator can claim to a chosen recipient. Claims remain possible after both stages complete; duplicate releases, duplicate claims and invalid recipients are rejected. |
+| Rejecting creator and expiry refunds | A creator that rejects ETH does not block release. After the second stage expires and the remaining escrow is refunded, the creator can still claim the first stage's released funds to another address. |
+| Mixed payout paths | Crediting the first-stage payout and directly withdrawing the second-stage payout leaves the first-stage balance available to claim. |
+| Approval timeout and refund order | Refunds are unavailable before expiry, and new approvals are rejected after expiry. Both possible claim orders for two backers produce the same refund amounts; duplicate refunds are rejected. |
+| Second-stage submission timeout | Releasing the first stage starts a new submission window. Refunds use the fixed remaining pool, with checks at the exact deadline and for rounding remainders. |
+| Retry after a failed expiry refund | A failed ETH transfer rolls back the refund state and accounting. The refund can be retried after the recipient accepts ETH. |
+| Protection for approved milestones | An approved milestone cannot be refunded even after its approval deadline. |
+| Timeout without evidence submission | If the creator fails to submit evidence after funding succeeds, late submission is rejected. Backers can claim refunds, changing the project status to Expired. |
+| Zero first-stage payout | A zero first-stage payout skips the ETH transfer and advances the project even if the creator rejects ETH. A nonzero second-stage withdrawal still requires a successful transfer. |
+| Constructor arguments | Constructor arguments determine the approval and submission timeouts; refunds become claimable when the configured short window expires. |
 
-失败交易检查回执失败、具体 revert 原因、合约 storage root 和余额不变、事件日志丢弃。普通账户的 nonce 和 gas 支出会改变，因此不比较整条链的状态根。成功提款/退款同时比较事件金额、项目余额与收款账户余额，并加回交易实际 Gas 费。
+For failed transactions, the tests check the failed receipt, specific revert reason, unchanged contract storage root and balance, and discarded event logs. Externally owned accounts still incur nonce changes and gas costs, so the tests do not compare the entire chain's state root. Successful withdrawals and refunds are checked against event amounts, project balances and recipient balances, accounting for the transaction's actual gas fee.
 
-`tests/fixtures/PaymentReceiver.sol` 仅用于验证收款失败；它不是生产合约。测试时间由本地块头控制，不需要等待真实截止时间。
+`tests/fixtures/PaymentReceiver.sol` is used only to test rejected payments; it is not a production contract. Test time is controlled through local block headers, so the tests do not wait for real deadlines.
 
-## 结果与范围
+`tests/utils.test.mjs` covers pure functions for amounts, percentages, budgets, URLs, filtering, deadlines and refund display states. `tests/wallet.test.mjs` covers configuration, wallet discovery, network checks, contract reads, call arguments and error mapping. These tests use simulated objects and do not constitute acceptance testing of real MetaMask interactions or React components. The offline regressions in `tests/deployment-verification.test.mjs` check bytecode comparisons and match classifications without accessing Sepolia.
 
-2026-10-22：**10/10 通过，0 失败**。最终执行输出见 [TAP 记录](evidence/automated/continuous-state.tap)；复核应以重新运行的输出为准。
+## Results and scope
 
-这是本地合约连续交易测试，不自动覆盖网页布局、MetaMask 确认、RPC 可用性或浏览器刷新。真实 Sepolia 成功流程、失败退款、钱包操作与截图另见 [手动测试记录](e2e-test-record.md)。源码与当前链上部署的一致性由 [独立部署核验](deployment-verification.md) 证明。
+On 2026-11-07, `npm test -- --test-reporter=tap` ran against baseline commit `4a77279` plus the changes on `feature/verify-deployment-evidence`: **124/124 passed, 0 failed, 0 skipped** (21 suites; 30 contract tests, 81 utility and simulated-wallet tests, and 13 deployment-verification regressions). The complete output is in the [current TAP record](evidence/automated/regression-2026-11-07.tap). `npm run build -- --base=/dapp/` also passed.
 
-参考实现 API：[EthereumJS VM 官方文档](https://github.com/ethereumjs/ethereumjs-monorepo/tree/master/packages/vm)。
+Historical baseline: on 2026-10-22, **10/10 passed, 0 failed**. The original [TAP record](evidence/automated/continuous-state.tap) is unchanged. It applies to the old contract and test set and is not evidence that the current 30 contract tests or the added frontend and deployment-verification regressions passed.
+
+These local tests do not automatically cover page layout, real MetaMask confirmations, RPC availability or browser refreshes. The [manual test record](e2e-test-record.md) contains the new Sepolia success flow's 13 transactions and 13 screenshots, along with historical evidence and the remaining acceptance checks. See [Deployment Verification](deployment-verification.md) for the source match level at a specified address and fixed block. Passing local tests does not replace verification of deployment consistency.
+
+API reference: [EthereumJS VM documentation](https://github.com/ethereumjs/ethereumjs-monorepo/tree/master/packages/vm).

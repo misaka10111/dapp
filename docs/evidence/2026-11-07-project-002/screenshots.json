@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-07",
+  "timezone": "Asia/Shanghai",
+  "projectId": 2,
+  "projectName": "Test Project 03",
+  "network": "Ethereum Sepolia",
+  "contractAddress": "0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F",
+  "provenance": "Original PNG attachments provided by the tester in chat; copied byte-for-byte without cropping, resizing or editing. Visible-state summaries describe screenshots and are not independent blockchain receipt verification.",
+  "refreshConfirmation": {
+    "file": "13-completed-after-refresh.png",
+    "source": "tester statement in chat",
+    "statement": "刷新后的",
+    "scope": "The tester explicitly identified the final screenshot as taken after browser refresh. The refresh action was not captured or executed by browser automation."
+  },
+  "screenshots": [
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-46be82d8-c774-462a-9d96-46672f445e55.png",
+      "file": "01-project-created.png",
+      "sha256": "6878485533f2946bb088d4f35ce1e7f192046118790a354c50401dbfc588b24f",
+      "bytes": 678925,
+      "width": 2372,
+      "height": 2960,
+      "visibleState": "A connected; project #002 / Test Project 03 is Funding; goal 0.0001 ETH; raised and held in escrow 0; both milestones Pending."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-784d7e09-b662-4fdf-b5ba-7fc98c11d609.png",
+      "file": "02-b-funded-50-percent.png",
+      "sha256": "3fb1cc69a84592cc36ce3844ec867326604adc942857dd77822b2cdd6ff78c58",
+      "bytes": 748830,
+      "width": 2392,
+      "height": 3088,
+      "visibleState": "B connected; project #002 remains Funding at 50%; raised, escrow and B contribution are 0.00005 ETH."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-e6395d41-c91d-4803-9a92-1acc86a2ff3d.png",
+      "file": "03-funded-100-percent.png",
+      "sha256": "7c7dfe3239bb0edafc84852e29aeb88f842d7c1af62e6d21ac5a9274fe914a8d",
+      "bytes": 707605,
+      "width": 2370,
+      "height": 2872,
+      "visibleState": "C connected; project #002 is Successful at 100%; raised and escrow are 0.0001 ETH; C contribution is 0.00005 ETH; milestone 1 awaits evidence."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-4fa8bd55-7808-4940-bf5f-f30cad9c6333.png",
+      "file": "04-milestone-1-in-review.png",
+      "sha256": "5b2d81df2cff9667401e097ce27cadb50c47a828e9eacb3c15ce93695fd3ae2b",
+      "bytes": 757314,
+      "width": 2394,
+      "height": 3118,
+      "visibleState": "A connected; milestone 1 is In review with submitted evidence and 0% approval weight; escrow remains 0.0001 ETH."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-80e6857d-3f8d-49dc-8c5a-cbfef8f5f75b.png",
+      "file": "05-milestone-1-b-approved-50-percent.png",
+      "sha256": "87b616d3097401af189e978c83c7fb60e331b785a44896d0514051172c03b1d5",
+      "bytes": 1123921,
+      "width": 2396,
+      "height": 3116,
+      "visibleState": "B connected; milestone 1 has 50% approval weight and remains In review; B is shown as having approved; escrow remains 0.0001 ETH."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-e3cb7394-180c-48db-a97e-b23a7865f2df.png",
+      "file": "06-milestone-1-approved-100-percent.png",
+      "sha256": "800ec34e445422d82a57b59f7edad1eab04630869364028be4b7ab666179c570",
+      "bytes": 1118361,
+      "width": 2398,
+      "height": 3100,
+      "visibleState": "C connected; milestone 1 is Approved at 100%; waiting for creator release; escrow remains 0.0001 ETH."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-de64f336-cee6-42e5-9811-d360a51288e9.png",
+      "file": "07-milestone-1-released-payout-pending.png",
+      "sha256": "84c35793ae4c58db5c0ac0d3635ab611af749a33dfd63956d358eecd86d941f4",
+      "bytes": 750072,
+      "width": 2396,
+      "height": 3108,
+      "visibleState": "A connected; milestone 1 is Released for 0.00004 ETH; creator payout available is 0.00004 ETH; escrow is 0.00006 ETH; milestone 2 awaits evidence."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-cd161f29-6d87-4751-a4c2-8a123dbd539e.png",
+      "file": "08-milestone-1-payout-claimed.png",
+      "sha256": "dcfb137309b5472c80cc79f2a7e0c6a2277c84c9dbe1b0c168f26b78cbaa6ef3",
+      "bytes": 744522,
+      "width": 2318,
+      "height": 3110,
+      "visibleState": "A connected; creator payout panel is absent after the reported claim; escrow remains 0.00006 ETH; milestone 1 remains Released; milestone 2 awaits evidence."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-6f9ca384-a0c8-4af1-b106-215d605f6991.png",
+      "file": "09-milestone-2-in-review.png",
+      "sha256": "0005327f3cc86b219040ff0c3911307d444411dfffc6fc17f4604852c89d80a0",
+      "bytes": 778318,
+      "width": 2338,
+      "height": 3128,
+      "visibleState": "A connected; milestone 1 remains Released; milestone 2 is In review with submitted evidence and 0% approval weight; escrow remains 0.00006 ETH."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-50031892-6f2f-4dd9-8475-2993a6151b8c.png",
+      "file": "10-milestone-2-b-approved-50-percent.png",
+      "sha256": "bb69769493376ec6251603ce0c4638b7b4b98846894e35c5152958868039aa57",
+      "bytes": 791672,
+      "width": 2318,
+      "height": 3118,
+      "visibleState": "B connected; milestone 2 has 50% approval weight and remains In review; B is shown as having approved; escrow remains 0.00006 ETH."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-719e056e-1b14-4be1-8a60-efdcd9930cdf.png",
+      "file": "11-milestone-2-approved-100-percent.png",
+      "sha256": "bcb4ef25773db7165b2ac70642845558aec82a975acb5e4b4dd5ebaee5e87d79",
+      "bytes": 807800,
+      "width": 2374,
+      "height": 3120,
+      "visibleState": "C connected; milestone 2 is Approved at 100%; waiting for creator release; escrow remains 0.00006 ETH."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-14e2ea26-ab30-4a5e-89e8-a2eca91f6b76.png",
+      "file": "12-completed-payout-pending.png",
+      "sha256": "c9b04d797621ba35c0960b21d0c6d72795514ab166110b6890dfcc8dd986ad5e",
+      "bytes": 787340,
+      "width": 2346,
+      "height": 3128,
+      "visibleState": "A connected; project #002 is Completed and both milestones are Released; creator payout available is 0.00006 ETH with Withdraw payout still available."
+    },
+    {
+      "sourceType": "user-provided screenshot",
+      "originalAttachment": "codex-clipboard-41029491-06e2-41a6-b797-75771555d4b2.png",
+      "file": "13-completed-after-refresh.png",
+      "sha256": "0f55e2b6a5ce03be25fa5fe9bdd0b147b419c35e652805fdddd2d7eb0594bb47",
+      "bytes": 763364,
+      "width": 2326,
+      "height": 3126,
+      "visibleState": "A connected; project #002 remains Completed; raised total remains 0.0001 ETH; escrow is 0; both milestones are Released; creator payout panel is absent."
+    }
+  ]
+}
