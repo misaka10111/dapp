@@ -1,0 +1,21 @@
+{
+  "explanation": "Each slot is a two-byte immutable placeholder (zero in compiled runtime) substituted with the constructor value at deployment.",
+  "slots": [
+    {
+      "position": 1024,
+      "onChainWord": 600
+    },
+    {
+      "position": 1076,
+      "onChainWord": 600
+    },
+    {
+      "position": 9354,
+      "onChainWord": 600
+    },
+    {
+      "position": 9461,
+      "onChainWord": 600
+    }
+  ]
+}
