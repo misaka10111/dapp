@@ -1,55 +1,16 @@
 # MilestoneFund
 
-COMP7610 课程项目：支持者为项目出资，项目方按两个里程碑提交成果。支持者审批通过后，发起人在网页释放和领取阶段款项，第一阶段为 40%，第二阶段为余款。仅使用 Sepolia 测试 ETH。出资封顶于目标金额（超额当场退回）；审批或成果提交超时后，支持者可按贡献比例取回剩余托管资金。
+MilestoneFund is a COMP7610 crowdfunding DApp on Ethereum Sepolia. Backers fund a project in escrow and vote on its two milestones using their accepted contributions as voting weight. Once a milestone is approved, it can be released. The first release allocates 40% of the amount raised, rounded down to a whole wei, and the second releases the remainder.
 
-**在线演示** · 在 Explore 可以直接查看 Sepolia 上的项目，包括已完成两阶段拨款的 `Test Project 02`。创建项目、出资、审批或领取款项时，连接 MetaMask，切到 Ethereum Sepolia，并准备测试 ETH 支付 gas。 [打开 MilestoneFund](https://misaka10111.github.io/dapp/)
+[Open the live demo](https://misaka10111.github.io/dapp/) · [View the Sepolia contract](https://eth-sepolia.blockscout.com/address/0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F) · [View the deployment transaction](https://eth-sepolia.blockscout.com/tx/0xfd1c8e65e0115251d0904588ede9c19ea28cb75a466931ef34767bf5f7e7133a)
 
-可复跑的本地测试见 [自动化测试说明](docs/automated-testing.md)。初版合约的交易截图和字节码复现保存在 [端到端测试记录](docs/e2e-test-record.md) 和 [部署核对记录](docs/deployment-verification.md)。
+Explore is available without a wallet. Connect MetaMask on **Ethereum Sepolia** (chain ID `11155111`) to create a project, contribute, approve a milestone or claim funds. All transactions use Sepolia test ETH.
 
-## 1. 项目文件
+## Run locally
 
-| 文件 | 用途 |
-| --- | --- |
-| `contracts/MilestoneFund.sol` | 核心合约：创建项目、出资、审批、提款和退款。在 Remix 部署这个文件。 |
-| `src/App.jsx` | 网页页面、表单、钱包连接和交易按钮。 |
-| `src/main.jsx` | React 启动入口。 |
-| `src/contract.js` | 读取合约地址和 ABI，连接 MetaMask 与 Sepolia。 |
-| `src/abi/MilestoneFund.json` | 前端调用合约需要的 ABI，已经与当前合约匹配。 |
-| `src/utils.js` | 金额转换、地址显示、链接检查和错误提示。 |
-| `src/styles.css` | 电脑网页样式。 |
-| `index.html` | 网页入口。 |
-| `package.json` | 依赖和启动命令。 |
-| `package-lock.json` | 固定依赖版本，让组员安装相同版本。 |
-| `.env.example` | 合约地址配置模板。 |
-| `.gitignore` | Git 忽略规则。 |
-| `scripts/compile-contract.mjs` | 修改合约后，可用它重新编译并更新 ABI；手动测试无需操作。 |
-| `tests/milestone-fund.test.mjs` | 本地连续状态测试，覆盖两阶段放款、退款及边界，不连接钱包。 |
-| `tests/utils.test.mjs` | 前端工具函数单元测试：金额格式、百分比、40/60 拆分、URL 校验、列表筛选与错误文案。 |
-| `tests/wallet.test.mjs` | 钱包与交易测试骨架：钱包发现、网络校验、调用参数与错误映射。 |
-| `tests/helpers/fake-wallet.mjs` | 测试用的 EIP-1193 钱包模拟器，可模拟多钱包、拒绝签名与错误链。 |
-| `scripts/verify-deployment.mjs` | 只读核对 Sepolia 运行字节码与编译结果，保存可复现证据。 |
-| `scripts/check-format.mjs` | 基础格式检查，无需额外依赖。 |
-| `.github/workflows/ci.yml` | PR 与 `main` 的自动检查，以及 `main` 的 GitHub Pages 发布。 |
-| `README.md` | 本说明文件。 |
+Use Node.js **22.12 or later**, npm and a desktop browser. GitHub Actions uses Node.js 22. Install MetaMask and fund your demo accounts with Sepolia test ETH if you plan to send transactions.
 
-## 2. 安装依赖并启动网页
-
-需要安装：
-
-- **Node.js 22.12 或更高版本**，包含 npm。
-- Git（使用克隆命令时需要；也可从 GitHub 下载 ZIP 并解压）。
-- Chrome 浏览器和 MetaMask 扩展。
-
-先安装 [Node.js](https://nodejs.org/)，npm 会随 Node.js 一起安装。React、Vite、Ethers 等会通过下面的命令一起安装，无需分别运行安装命令。不需要数据库、后端服务器或 Hardhat。
-
-| 依赖 | 用途 | 安装方式 |
-| --- | --- | --- |
-| React、React DOM | 显示网页 | `npm ci` 一起安装 |
-| Ethers v6 | 连接钱包和调用合约 | `npm ci` 一起安装 |
-| Vite、React 插件 | 启动和构建前端 | `npm ci` 一起安装 |
-| solc 0.8.24 | 可选的本地合约编译和 ABI 更新 | `npm ci` 一起安装；Remix 中单独选择编译器版本 |
-
-克隆 `main` 并安装依赖。
+Clone the repository and install the locked dependencies.
 
 ```bash
 git clone --branch main https://github.com/misaka10111/dapp.git
@@ -57,146 +18,113 @@ cd dapp
 npm ci
 ```
 
-按[第 4 节](#4-配置本地网页)填写 `.env.local`，然后在项目根目录启动。
-
-```bash
-npm run dev
-```
-
-打开终端显示的网址，通常是 `http://localhost:5173`。保持终端运行，按 Ctrl+C 可以停止。
-
-首次下载项目或 `package-lock.json` 变化后运行 `npm ci`。平时启动网页运行 `npm run dev`。
-
-## 3. 部署独立测试合约（可选）
-
-在线演示和日常本地测试使用第 4 节的 Sepolia 合约。需要隔离测试数据时，可以按仓库默认的 **0.8.24 / 优化开启 / Paris** 配置在 Remix 部署一个独立实例。修改合约接口后，先运行 `npm run compile:contract` 更新 ABI。部署完成后，将独立实例地址填入本机的 `.env.local`。
-
-1. 在安装 MetaMask 的浏览器中打开 [Remix](https://remix.ethereum.org)。
-2. 新建 `MilestoneFund.sol`，复制仓库中 `contracts/MilestoneFund.sol` 的全部内容。
-3. 在 Solidity Compiler 中选择 **0.8.24**，开启 Optimization，runs 设为 **200**，EVM Version 选择 **paris**，不启用 via-IR，点击 Compile。
-4. 准备两个不同的 MetaMask 账户：**A 为发起人，B 为支持者**。选择 **Ethereum Sepolia**。A 需要测试 ETH 支付 gas；B 需要 **0.01 测试 ETH，另外预留 gas**。
-5. Remix 的 Deploy & Run 中，Environment 选择 **Browser Extension / MetaMask**，旧版可能叫 Injected Provider。核对网络是 Sepolia、账户是 A。
-6. 合约选择 **MilestoneFund**，Value 为 **0**。v2 有**两个构造参数**，按顺序填：`approvalTimeout`、`submissionTimeout`（单位秒，取值 1 到 2592000 即 30 天）。正式使用填 `604800` 和 `604800`（7 天）；如果要现场演示超时退款，另部署一个填入 `600` 和 `600`（10 分钟）的演示实例。点击 Deploy，在 MetaMask 确认，等待成功。
-7. 复制 Deployed Contracts 中的**合约地址**，连同部署交易哈希发给组员。不要把钱包地址或交易哈希当成合约地址。
-
-也可以先用 Remix VM 的虚拟账户检查合约。**Remix VM 的地址不能填到这个 Sepolia 前端中**，网页交易需要真正部署在 Sepolia。
-
-## 4. 配置本地网页
-
-在项目根目录创建 `.env.local`。可以从 `.env.example` 复制，也可以直接粘贴以下配置，让本地网页连接到和线上演示相同的合约。
+Create `.env.local` in the repository root using the current demo configuration.
 
 ```dotenv
 VITE_CONTRACT_ADDRESS=0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F
 VITE_SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
 ```
 
-该 Sepolia 实例的成果提交和审批窗口各为 10 分钟。`VITE_SEPOLIA_RPC_URL` 用于只读浏览，本地留空时，网页通过已切到 Sepolia 的 MetaMask 读取。保存配置后启动或重启 `npm run dev`，在 Explore 简介下方核对合约地址。
-
-前端的 `VITE_*` 配置会随构建发送到浏览器，请只填公开信息。`.env.local` 已加入 Git 忽略规则。
-
-## 5. 手动测试：完成一次成功流程
-
-每笔交易都等确认后再继续。切换 MetaMask 账户后，先检查网页显示的地址是否正确，必要时点 Refresh。
-
-| 步骤 | 操作 | 预期结果 |
-| --- | --- | --- |
-| 1 | A 创建项目：目标 **0.01 ETH**，截止选明天，填写名称、简介和两个阶段目标。 | 显示 Funding，已筹金额为 0。 |
-| 2 | B 打开该项目，出资 **0.01 ETH**。 | 显示 Successful，已筹和托管金额均为 0.01，停止接受出资。 |
-| 3 | A 提交第一阶段成果说明和真实 GitHub/Demo 链接。 | 成果可查看，阶段显示 In review。 |
-| 4 | B 审批第一阶段。 | 赞成权重 100%，显示 Approved。 |
-| 5 | A 点击 **Release & withdraw**，释放并提取第一阶段资金。 | 提取 **0.004 ETH**，托管剩 **0.006 ETH**。 |
-| 6 | A 提交第二阶段成果和链接。 | 第二阶段显示 In review。 |
-| 7 | B 审批第二阶段。 | 第二阶段显示 Approved。 |
-| 8 | A 点击 **Release & withdraw**，释放并提取第二阶段资金。 | 提取 **0.006 ETH**，托管余额为 0，项目显示 Completed。 |
-| 9 | 刷新网页并重新打开项目。 | 完成状态及提款记录仍然正确。 |
-| 10 | 打开页面中的交易链接。 | Sepolia Etherscan 能查到真实成功交易。 |
-
-网页应显示钱包确认中、交易处理中、成功或失败提示。保存项目 ID、交易哈希和截图。钱包余额变化包含 gas，检查提款金额主要看页面记录和交易事件。
-
-步骤 5 也可以由 A 点击 **Release to creator balance**，开启第二阶段并将 **0.004 ETH** 计入自己的待领取余额，再点击 **Withdraw payout** 领取。两笔交易均由 A 签名并支付 gas。收款地址留空时发到 A 的钱包，也可以填写其他收款地址。若收款地址拒收 ETH，余额保留，A 可更换地址后重试。
-
-## 6. 主要测试功能
-
-不同场景尽量创建新项目，记录“通过、失败或未测试”。
-
-| 测试功能 | 操作和预期 |
-| --- | --- |
-| 钱包与网络 | 连接钱包、切换 A/B、切换网络。地址、角色按钮和 Sepolia 提示应更新。 |
-| 创建与读取 | 创建后刷新，名称、目标、截止时间和两个阶段目标应保持一致。 |
-| 输入检查 | 空必填项、零/负金额、过去的截止时间不能成功提交。 |
-| 多次出资 | 目标 0.01，B 先出 0.003，再出 0.007。累计应为 0.01，项目成功。 |
-| 发起人不能自投 | A 打开自己的项目，应看到限制提示；在 Remix VM 直接调用也应失败。 |
-| 超额及封顶 | 目标 0.01，B 出 0.012。只接受 0.01，0.002 当场退回，两阶段预算为 0.004 和 0.006。 |
-| 审批超时退款 | 每阶段从提交成果起计算审批截止时间。到期后未通过的阶段拒绝新投票，支持者可按出资比例领取退款。 |
-| 提交超时退款 | 第一阶段从达标起算，第二阶段从第一阶段释放时起算。到期后拒绝提交，切换两位支持者依次领取，确认第二位的报价不受首笔退款影响。 |
-| 成果与权限 | 只有发起人能提交成果，同阶段不能重复提交或修改。 |
-| 加权审批 | 恰好 50% 不通过，严格超过 50% 立即通过。详见下方示例。 |
-| 释放与提款权限 | 审批通过后，网页向 A 显示释放按钮，向 B 显示等待发起人释放。链上的 `releaseMilestone` 允许任何账户主动释放，领取已释放款项由发起人签名。已释放的阶段不能重复释放。 |
-| 阶段顺序 | 第一阶段释放后即可提交第二阶段。已计入发起人待领取余额的金额不参与退款。 |
-| 重复操作 | 重复投票、提款或成果提交应失败，不改变金额或权重。 |
-| 拒绝签名 | 在 MetaMask 拒绝交易，应显示拒绝提示并允许重试，不能显示成功。 |
-| 刷新恢复 | 刷新后，金额、成果和状态应从合约正确读回。 |
-
-网页会隐藏或禁用不允许的操作。验证合约本身是否拒绝时，请在 **Remix VM** 中选对应账户直接调用。只有 `contribute` 需要填写 Remix 的 Value，其他调用要把 Value 改回 **0**。项目编号从 0 开始；第一阶段参数是 0，第二阶段是 1。
-
-提交成果和投票都必须在链上截止秒之前确认。到达截止秒时，未完成的提交或审批窗口关闭，符合条件的支持者可以退款。已在截止前批准的阶段仍可在之后释放。网页通过 `getMilestoneWindow` 读取当前截止时间和开关状态。
-
-短超时演示可使用两个均有出资的支持者账户。倒计时归零后，等页面确认链上已截止，再用第一位支持者领取。核对交易成功提示的实付金额，切换到第二位支持者，确认其可领金额仍与首笔领取前一致。筹款失败的退款为全额出资，里程碑超时退款按未放款的托管金额计算。
-
-**50% 边界测试（Remix VM）：**
-
-1. A 创建目标 **100 wei** 的项目，B/C 为支持者，D 为无关账户。deadline 输入未来的 Unix 秒数，可在浏览器控制台计算 `Math.floor(Date.now() / 1000) + 3600` 后复制数值。
-2. B 和 C 各出 50 wei，A 提交第一阶段成果。
-3. D 调用 `approveMilestone(id, 0)` 应失败，因为 D 没有出资。
-4. B 审批后，`getMilestone(id, 0)` 的 approvalWeight 为 50、approved 为 false。B 再次投票应失败，A 此时不能提款。
-5. C 审批后，approved 立即变为 true；之后不能继续投票。
-6. A 提取第一阶段 40 wei，托管剩 60 wei；再完成第二阶段提交、两人审批和剩余 60 wei 提款。
-
-**失败退款测试（网页 + Sepolia）：**
-
-1. 新建目标 **0.02 ETH** 的项目，截止至少设为 5 分钟后，B 只出 **0.003 ETH**。
-2. 等截止后，页面显示 Awaiting finalization，不能继续出资。截止本身不会自动把链上状态改为 Failed。
-3. A 或 B 点击 **Finalize funding**，等确认后显示 Failed。
-4. B 点击 **Claim refund**，应返还原始出资 0.003 ETH，托管余额变 0；历史筹款总额仍为 0.003。
-5. 刷新后仍是已退款，不能重复领取。另可在 Remix VM 检查提前确认失败、提前退款、重复退款以及成功项目退款均被拒绝。
-
-**多项目隔离（Remix VM）：** 创建 P、Q 两个目标均为 100 wei 的项目。B 为 P 出 100 wei，C 为 Q 出 30 wei。P 完成第一阶段提款后，P 剩 60、Q 仍为 30。Q 截止后确认失败并退款，P 应仍剩 60。一个项目的出资和审批记录不能影响另一个项目。
-
-给组员反馈时写明：测试版本/提交、操作系统和浏览器、合约地址和网络、项目 ID、通过/失败/未测项目、复现步骤及交易哈希/截图。不要包含私钥或助记词。
-
-## 7. 其他命令和常见问题
+The RPC URL enables read-only browsing. If it is blank, the frontend reads through MetaMask on Sepolia. Vite exposes `VITE_*` variables to the browser, so use public values in these fields. Git ignores `.env.local`.
 
 ```bash
-npm test                  # 运行合约状态测试和前端单元测试
-npm run test:contract     # 只跑合约状态测试
-npm run test:unit         # 只跑前端单元测试
-npm run verify:deployment # 只读核对现有 Sepolia 合约，成功时输出 full-match
-npm run build             # 检查正式构建，生成 dist
-npm run compile:contract  # 修改 Solidity 后重新生成 ABI
-npm run format:check      # 基础格式检查：尾随空白、Tab 缩进、末尾换行、行尾混用、JSON 有效性
+npm run dev
 ```
 
-向 `main` 提交 PR 或推送到 `main` 时，GitHub Actions 会安装依赖、检查格式、运行测试并构建前端。PR 必须通过 `quality-gate` 才能合并。`main` 通过检查后，CI 将以 `/dapp/` 为基础路径构建的 `dist` 发布到 GitHub Pages。
+Open the URL printed by Vite, normally `http://localhost:5173`. Check that Explore shows the contract address above. Restart Vite after editing `.env.local`.
 
-首次启用时，在仓库 **Settings → Pages** 将 **Source** 设为 **GitHub Actions**。再到 **Settings → Secrets and variables → Actions → Variables** 新建第 4 节的两个仓库变量。合并后在 **Actions → CI → Deploy to GitHub Pages** 查看网址。也可以手动在 `main` 运行 **CI** 重新发布。
+## Demonstrate the workflow
 
-新增测试依赖后先运行一次 `npm ci`。`npm test` 现在跑两部分：合约状态测试在进程内的虚拟环境执行签名交易，初始化资金、部署合约并连续操作，无需 MetaMask、RPC 或测试 ETH，每次从干净状态开始，两套编译配置都在 Osaka VM 中运行，分别覆盖仓库默认构建和现有部署的复现构建；前端单元测试只跑纯函数和模拟钱包，不读 `.env.local`、不连网、不依赖当前时间，因此结果稳定可复跑。React 组件级的回归测试尚未接入，`tests/helpers/fake-wallet.mjs` 为下一步准备了可复用的钱包模拟器。
+Use three MetaMask accounts for the walkthrough. **A** creates the project and claims payouts. **B** and **C** contribute and vote. Each account needs test ETH for gas, and the backers also need the amounts below. Wait for each transaction to confirm and check the connected address after switching accounts.
 
-`verify:deployment` 需要联网读取 Sepolia，但不签名或发送交易，也不修改前端 ABI。它将证据写入 `docs/evidence/deployment/`，默认使用新文件名；仅完整运行字节码匹配才返回退出码 0。详细命令及结果解释见上面的两个记录文件。
+| Step | Action | Expected result |
+| --- | --- | --- |
+| 1 | A creates a project with a **0.0001 ETH** target, a future funding deadline and two milestone goals. | The project appears as **Funding**. |
+| 2 | B and C each contribute **0.00005 ETH**. | The project reaches its target and becomes **Successful**. |
+| 3 | A submits a milestone 1 summary and an HTTP or HTTPS evidence link. B approves, then C approves. | B's vote represents exactly **50%**, so the milestone remains in review. C's vote takes the total above 50% and the milestone becomes **Approved**. |
+| 4 | A clicks **Release to creator balance** for milestone 1. | A can claim **0.00004 ETH**. The remaining **0.00006 ETH** stays in escrow and milestone 2 opens. |
+| 5 | A clicks **Withdraw payout**, keeping A as the recipient. | A claims **0.00004 ETH** in a separate transaction; the claimable balance becomes zero. |
+| 6 | A submits milestone 2 evidence. B approves, then C approves. | The approval weight rises from **50%** to **100%** and milestone 2 becomes **Approved**. |
+| 7 | A clicks **Release to creator balance** for milestone 2. | The project becomes **Completed**, escrow is zero and **0.00006 ETH** remains available to claim. |
+| 8 | A clicks **Withdraw payout**, then refreshes the page. | A claims the remaining **0.00006 ETH**. The page retains **Completed**, both milestones are **Released**, and no payout remains available. |
 
-`simulate-tests.mjs` 和 `TEST-REPORT.md` 保留为 2026-10-21 的历史模拟验收；旧脚本依赖当时的链上项目数量和状态，不能作为稳定的持续测试入口。日常回归使用 `npm test`。
+This separate release-and-claim workflow was manually completed on **2026-11-07** for **Test Project 03 (#002)**. The [acceptance record](docs/e2e-test-record.md) contains all **13 confirmed transactions**, state snapshots and screenshots. **Completed** means both allocations have been released from escrow; the creator can still have a payout to claim, as step 7 demonstrates.
 
-修改 Solidity 后，要重新编译并更新 ABI、在 Remix 重新部署、替换前端地址。当前源码未修改时，无需重新生成 ABI。
+A can alternatively choose **Release & withdraw** to release and collect an approved milestone in one transaction. **Withdraw payout** also supports a different recipient. Contributions are capped at the target, with any excess returned in the same transaction. These alternatives were not exercised in the recorded November 7 browser walkthrough; see the acceptance record for the remaining manual checks.
 
-| 问题 | 检查方法 |
+The website shows release controls to the creator, whose account pays gas for that transaction. The on-chain `releaseMilestone` function allows any account to release an eligible stage. `withdrawMilestone` and `claimPayout` require the creator.
+
+### Time windows and refunds
+
+| Window | Opens when | Duration on the live contract |
+| --- | --- | --- |
+| Milestone 1 submission | Accepted funding reaches the target | 10 minutes |
+| Milestone 2 submission | Milestone 1 is released | 10 minutes |
+| Approval for either milestone | Its evidence is submitted | 10 minutes |
+
+The contract uses the block timestamp. Evidence and approvals must be included in a block before their deadline. A milestone approved in time can be released after its approval window ends.
+
+- **Funding target missed.** After the funding deadline, any account can click **Finalize funding**. Backers can then use **Claim refund** to recover their full accepted contributions.
+- **Funded project times out.** If the current milestone misses its submission or approval deadline, backers can use **Claim refund** once the page confirms expiry on-chain. The first claim fixes the remaining escrow pool and marks the project **Expired**. Each backer receives their share of that pool in proportion to their accepted contributions, rounded down to a whole wei. Amounts already released to the creator's balance are outside the pool.
+
+The recorded demo also shows **Test Project 02 (#001)** as completed and **Test Project 01 (#000)** as expired with refunds open. Those project cards alone do not establish that refunds were claimed. Use the transaction links in the acceptance record to inspect the verified **#002** workflow separately from gas fees.
+
+## Architecture and repository layout
+
+React and Vite provide the static frontend. Ethers.js reads the contract through the configured RPC and uses MetaMask for signed transactions. The contract stores projects, voting weights and escrow balances on Sepolia. It records evidence descriptions and URLs, while backers review the linked work themselves.
+
+| Path | Responsibility |
 | --- | --- |
-| 找不到 node/npm | 安装带 npm 的 Node.js，重新打开终端。 |
-| 合约未配置 | 检查根目录 .env.local、实际地址，重启 Vite。 |
-| 地址没有合约 | 确认是 Sepolia 部署地址，不是钱包或 Remix VM 地址。 |
-| 钱包连接失败 | 解锁 MetaMask、选择 Sepolia、检查站点授权。 |
-| 余额不足 | A、B 都需要测试 ETH 支付 gas。 |
-| 切换账户后按钮不对 | 核对连接地址，刷新；必要时重新连接正确账户。 |
+| [`contracts/MilestoneFund.sol`](contracts/MilestoneFund.sol) | Funding, milestone approval, payout and refund rules. |
+| [`src/App.jsx`](src/App.jsx) and [`src/styles.css`](src/styles.css) | Project views, wallet actions and interface styling. |
+| [`src/contract.js`](src/contract.js) and [`src/abi/MilestoneFund.json`](src/abi/MilestoneFund.json) | Contract configuration, providers and the interface used by the frontend. |
+| [`tests/`](tests/) | Contract scenarios and frontend unit tests. |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Pull request checks and GitHub Pages deployment from `main`. |
 
-开发时从 `main` 新建分支，通过 PR 合并。仓库保留源码、README 和配置模板，前端构建产物由 CI 发布。
+## Build and verify
 
-本项目仅面向电脑浏览器。**真实 Remix/Sepolia 手动验收仍需组员执行。** 首笔成功的超时退款将当时未释放的托管余额固定为退款池。每人按「原始出资 × 固定退款池 ÷ 总筹款」领取，先后顺序不影响金额。每笔退款向下取整到 wei，无法按比例分配的余数留在托管账本中。前端直接显示合约返回的可领金额。
+```bash
+npm run format:check
+npm test
+npm run build
+```
+
+Run these commands after `npm ci`. The recorded regression run passed **124 tests**: 30 contract tests, 81 frontend utility/wallet tests and 13 deployment-verifier tests. Tests use a local EVM, simulated wallet calls and saved deployment fixtures. The build writes the production frontend to `dist/`. Run `npm run preview` to serve that build locally.
+
+GitHub Actions installs dependencies, checks formatting, runs tests and builds the app. Successful runs on `main` publish the build to GitHub Pages with the `/dapp/` base path. For a separate Pages setup, choose **GitHub Actions** as the publishing source and configure the two repository variables shown in [Run locally](#run-locally).
+
+See the [automated testing notes](docs/automated-testing.md), [manual acceptance record](docs/e2e-test-record.md) and [deployment verification](docs/deployment-verification.md) for evidence and scope. The current deployment matches the local executable after substitutions at compiler-declared immutable locations; its metadata does **not** match. This is reported as `immutable-substitution-match`, not a full runtime match. To repeat the read-only check and save a new evidence bundle, run `npm run verify:deployment`.
+
+The [October 21 simulation report](TEST-REPORT.md) and older deployment records are historical evidence for a different contract instance. Raw evidence, including original on-chain text and user quotations, is preserved verbatim; the submission documentation is in English.
+
+## Deploy a separate Sepolia contract
+
+Use this procedure to create an independent instance for your own campaigns.
+
+1. Open [Remix](https://remix.ethereum.org/) and add [`MilestoneFund.sol`](contracts/MilestoneFund.sol).
+2. Match the repository compiler settings. Select Solidity **0.8.24**, enable optimisation with **200 runs** and choose **Paris** as the EVM target.
+3. In **Deploy & Run**, select the browser wallet environment and connect MetaMask to **Ethereum Sepolia**. Select `MilestoneFund` and set the deployment value to **0**. Supply `approvalTimeout` and `submissionTimeout`, in that order, in seconds. Use `600` for each to reproduce the demo windows.
+4. Confirm deployment and set `VITE_CONTRACT_ADDRESS` in `.env.local` to the new contract address. Restart the frontend. If you change the contract interface, run `npm run compile:contract` to regenerate the frontend ABI.
+
+See the [Remix deployment guide](https://remix-ide.readthedocs.io/en/latest/run.html) for the wallet connection and deployment controls.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Explore shows a configuration error | Check `.env.local`, the Sepolia contract address and the RPC URL, then restart Vite. |
+| Transaction buttons are unavailable | Unlock MetaMask, select Sepolia and check that the connected account has the required role. |
+| A transaction fails near a deadline | Check the latest on-chain state and the submission or approval deadline shown for that milestone. |
+| The view looks stale after switching accounts | Confirm the address shown in the header and use **Refresh** in Explore. |
+
+## Course submission
+
+The team submits one package for COMP7610. Use the live site and the [local setup](#run-locally) to reproduce the demonstration from this repository.
+
+| Deliverable | Submission requirement |
+| --- | --- |
+| Demo video | An English video of up to **15 minutes** in high-resolution **MP4** or **MOV**. Explain the idea, show the core features and include a live demonstration. Include presentation slides if prepared. |
+| Project report | A **PDF** covering the background, idea, design, implementation and contribution distribution. |
+| Code repository | The complete runnable source and a detailed README with setup and demonstration instructions. |
+
+Each student submits the peer assignment separately.

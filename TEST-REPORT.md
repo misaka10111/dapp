@@ -1,200 +1,208 @@
-# MilestoneFund 测试报告
+# MilestoneFund Historical Test Report
 
-> 本文主要记录 2026-10-21 的历史模拟测试。2026-10-22 已完成 [两条手动端到端流程](docs/e2e-test-record.md)、[本地连续状态测试](docs/automated-testing.md) 和 [完整部署字节码核对](docs/deployment-verification.md)。旧脚本中的实时链上状态假设会随时间失效，日常回归请运行 `npm test`。
+> This report records the historical simulations and UI work from **2026-10-21**, with follow-up notes from 2026-10-22. Its 76 recorded assertions are not the current 124-test regression suite or the new Sepolia acceptance run. Later records cover [manual end-to-end testing](docs/e2e-test-record.md), [local stateful tests](docs/automated-testing.md), and [deployment bytecode verification](docs/deployment-verification.md). The old script imports the current ABI while assuming an older contract layout and live state, so it is not a current acceptance tool. Run `npm test` for current regression testing. Historical results below have not been rerun for this translation.
 
-- **测试对象**：`misaka10111/dapp` 分支 `milestonefunddemo`（commit `HEAD`）
-- **合约**：Sepolia `0x9b824CA674432B390E30A5164a76c04EeAa8f686`
-- **测试日期**：2026-10-21
-- **测试范围**：合约逻辑（创建 / 出资 / 审批 / 提款 / 退款 / 权限 / 边界）、前端只读流程、构建、交接配置
+- **Subject at the time**: `misaka10111/dapp`, branch `milestonefunddemo` (recorded as commit `HEAD`; no immutable commit hash was recorded)
+- **Historical contract**: Sepolia `0x9b824CA674432B390E30A5164a76c04EeAa8f686`
+- **Test date**: 2026-10-21
+- **Scope**: contract calls for creation, contributions, approvals, withdrawals, refunds, permissions, and boundaries; the frontend read-only flow, build, and handover configuration
 
 ---
 
-## 一、结论
+## 1. Historical conclusions
 
-| 项目 | 结果 |
+| Item | Recorded result |
 | --- | --- |
-| 合约逻辑（76 项断言） | **全部通过**，包括审批、提款、退款、50% 边界、超额出资、取整尾差 |
-| 前端只读流程（列表 / 详情 / 状态徽章 / 金额） | 正常，读到的链上数据与合约一致 |
-| `npm ci` / `npm run build` | 通过（484 kB JS，gzip 165 kB） |
-| 合约接口初检 | 13 个 ABI 函数选择器在链上字节码中存在；该检查本身不能证明源码和部署完全一致。后续完整核验见部署核对记录。 |
-| **阻塞级问题** | **1 个：群里的合约地址校验和不正确，直接粘贴会让页面完全不可用**（已修复，见第二节） |
-| 交接文件缺失 | `.env.example`、`.gitignore`、`vite.config.js` 都不在仓库里，README 的步骤跑不通（已补齐） |
+| Simulation and helper checks (76 assertions) | **All recorded as passing**: 45 contract-call assertions and 31 frontend helper assertions. These included approval, withdrawal, refund, fabricated overfunded-state, and rounding cases. See Section 4 for the limits of these checks, including the original 50% boundary claim. |
+| Frontend read-only flow (list, details, status badges, amounts) | Displayed chain data matched the contract reads. |
+| `npm ci` / `npm run build` | Passed (484 kB JS, 165 kB gzip). |
+| Preliminary contract interface check | All 13 ABI function selectors were present in the deployed bytecode. This alone did not establish a complete source-to-deployment match; see the later deployment verification record. |
+| **Blocking issue** | **One: the contract address shared in the group had an invalid checksum, making the page unusable when pasted directly.** Fixed as described in Section 2. |
+| Missing handover files | `.env.example`, `.gitignore`, and `vite.config.js` were absent, so the README setup steps could not be followed. The files were added. |
 
-当时的 76 项模拟断言及前端只读检查通过，发现的地址和配置问题已处理；模拟结果不能替代连续交易验收、钱包交互测试或完整部署核对。
-
----
-
-## 二、阻塞问题：合约地址校验和不正确
-
-群消息里的地址：
-
-```
-0x9b824CA674432B390E30A5164a76c04eEaa8f686   ← isAddress() = false
-0x9b824CA674432B390E30A5164a76c04EeAa8f686   ← 正确（注意 04EeAa 的大小写）
-```
-
-这串地址的十六进制数字是对的，但 **EIP-55 大小写校验和算错了**（`04eEaa` 应为 `04EeAa`）。ethers v6 的 `isAddress()` 对混合大小写地址会校验校验和，所以：
-
-```
-CONFIGURED = isAddress(CONTRACT_ADDRESS) && ...  →  false
-```
-
-页面直接进入"配置异常"分支，显示 `Configuration needs attention / Invalid contract address`，项目列表为空、所有按钮禁用。**表现看起来像"合约没部署"或"代码坏了"，实际上是地址字符串大小写的问题。**
-
-已做两件事：
-
-1. **`src/contract.js` 增加容错**：混合大小写校验失败时，用全小写重试一次（十六进制值不变，因此不会指向错误合约）。现在粘贴群里那串地址也能正常工作。
-2. 报告里记录正确写法：`0x9b824CA674432B390E30A5164a76c04EeAa8f686`，或全小写 `0x9b824ca674432b390e30a5164a76c04eeaa8f686`。
-
-> 建议：以后在群里发地址时用代码块或直接发全小写，聊天软件/输入法改大小写是很常见的。
+The 76 historical assertions and frontend read-only checks were reported as passing, and the address/configuration issues were addressed. These simulations did not replace stateful transaction acceptance, wallet interaction tests, or complete deployment verification.
 
 ---
 
-## 三、其他发现（按严重度）
+## 2. Blocking issue: invalid contract address checksum
 
-| 级别 | 问题 | 影响 | 处理 |
+The address shared in the group differed from the correct checksum form:
+
+```text
+0x9b824CA674432B390E30A5164a76c04eEaa8f686   <- isAddress() = false
+0x9b824CA674432B390E30A5164a76c04EeAa8f686   <- correct (note the case of 04EeAa)
+```
+
+The hexadecimal address value was correct, but its **EIP-55 mixed-case checksum was incorrect**: `04eEaa` should have been `04EeAa`. In ethers v6, `isAddress()` validates mixed-case checksums, resulting in:
+
+```text
+CONFIGURED = isAddress(CONTRACT_ADDRESS) && ...  ->  false
+```
+
+The page entered its configuration-error branch, showing `Configuration needs attention / Invalid contract address`, an empty project list, and disabled buttons. This resembled a missing deployment or broken application, although the immediate cause was the address string's casing.
+
+Two changes were made:
+
+1. **Checksum tolerance in `src/contract.js`**: if mixed-case validation failed, validation retried the lowercase address. This retained the hexadecimal value and made the shared address usable; it did not verify the intended deployment independently.
+2. The correct form was documented: `0x9b824CA674432B390E30A5164a76c04EeAa8f686`, or lowercase `0x9b824ca674432b390e30a5164a76c04eeaa8f686`.
+
+> Historical sharing recommendation: use a code block or the lowercase form to reduce accidental casing changes.
+
+---
+
+## 3. Other historical findings, by severity
+
+| Severity | Issue | Impact | Resolution or recommendation at the time |
 | --- | --- | --- | --- |
-| P0 | 仓库里没有 `.env.example` | README 第 4 节 `cp .env.example .env.local` 直接失败，组员不知道要填哪几个变量 | **已补** |
-| P0 | 仓库里没有 `.gitignore` | 组员很容易把 `node_modules/`、`dist/`、`.env.local` 提交上去；`.env.local` 一旦进仓库，别人 clone 后会用错地址 | **已补** |
-| P1 | 链上字节码与 README 默认编译参数不一致 | 2026-10-22 已纠正早期根据 PUSH0 推断 Shanghai 的结论：完整匹配配置为 solc 0.8.34、优化关闭、Osaka、源码单元 MilestoneFund.sol、LF 换行。完整 runtime 为 15,664 字节，包含 metadata；默认 0.8.24 优化开启/Paris 构建不能复现该实例。选择器存在也不能单独证明“功能无影响”。 | 已补只读核验脚本、Standard JSON 输入与完整匹配证据；详见部署核对记录，无需重部署现有实例。 |
-| P2 | 缺 `vite.config.js` | `@vitejs/plugin-react` 装了但从未启用：没有 HMR，改代码要手动刷新；且 JSX 走经典运行时，新组件忘了 `import React` 会报错 | **已补** |
-| P2 | 不配 `VITE_SEPOLIA_RPC_URL` 时，**只读浏览也依赖 MetaMask** | `readProvider()` 在 RPC 为空时回落到 `BrowserProvider`，没装钱包/没切 Sepolia 的组员连项目列表都看不到，报错信息也不直观 | 建议 README 里把 RPC 那行标成"强烈建议填"，或内置一个公共 RPC 兜底 |
-| P3 | Funding 阶段就显示 `Budget after successful funding: 0.0002 ETH` | 这个数字是按**当前已筹**算的，还会随新出资变化，容易被当成最终预算 | 已修复：改为 Projected budget，并注明 "based on X ETH raised so far"，无出资时显示 `—` |
-| P3 | 交易提示条不会自动消失 | 上一次的失败提示会一直挂在页面上 | 已修复：改为右下角 toast，成功 7 秒 / 失败 12 秒自动收起，也可手动关闭 |
-| P3 | `body { min-width: 1000px }` | 小屏幕横向滚动 | 已修复：去掉最小宽度，加 1000px / 720px 两个断点，430px 可用 |
-| P3 | 详情面板在项目列表下方 | 点卡片后要自己往下滚才能看到详情，选中态也不明显 | 已修复：选中后平滑滚动到详情，卡片显示蓝色描边，详情可关闭 |
-| P3 | 顶部品牌名 `href="#"` | 点击会跳到页面顶部并改写 URL hash | 已修复：改为 button |
+| P0 | Missing `.env.example` | The README's `cp .env.example .env.local` step failed, and teammates had no variable template. | **Added.** |
+| P0 | Missing `.gitignore` | `node_modules/`, `dist/`, or `.env.local` could be committed accidentally; a shared local configuration could make another clone use an unintended address. | **Added.** |
+| P1 | Deployed bytecode differed from the README's default compiler settings | The 2026-10-22 follow-up corrected the early inference of Shanghai from PUSH0. The matching configuration was solc 0.8.34, optimizer disabled, Osaka, source unit `MilestoneFund.sol`, and LF line endings. The complete runtime was 15,664 bytes including metadata; the default solc 0.8.24, optimizer-enabled, Paris build did not reproduce that instance. Selector presence alone could not establish equivalent behavior. | Added a read-only verification script, Standard JSON input, and complete-match evidence; see the deployment verification record. The historical instance did not require redeployment for this mismatch. |
+| P2 | Missing `vite.config.js` | `@vitejs/plugin-react` was installed but not enabled. The original report described missing HMR and classic-JSX imports; more precisely, the React plugin was not configured, which alone does not establish that all Vite HMR was unavailable. | **Added.** |
+| P2 | Read-only browsing depended on MetaMask when `VITE_SEPOLIA_RPC_URL` was omitted | `readProvider()` fell back to `BrowserProvider`, so users without a wallet or on the wrong network could not reliably load the project list, and errors were unclear. | Recommend a stronger README recommendation to configure RPC, or a public RPC fallback. |
+| P3 | Funding projects displayed `Budget after successful funding: 0.0002 ETH` | The amount was based on funds raised so far and changed with new contributions, making it easy to mistake for a final budget. | Changed to Projected budget with `based on X ETH raised so far`; displayed `—` when nothing had been raised. |
+| P3 | Transaction banners remained indefinitely | An earlier failure remained visible. | Replaced with bottom-right toasts, dismissed after 7 seconds for success or 12 seconds for failure, with manual dismissal. |
+| P3 | `body { min-width: 1000px }` | Small screens required horizontal scrolling. | Removed the minimum width and added 1000px / 720px breakpoints; checked at 430px. |
+| P3 | Details appeared below the project list | Selecting a card required manual scrolling, and selection was unclear. | Added smooth scrolling to details, a blue selected-card outline, and a close button. |
+| P3 | The brand link used `href="#"` | Clicking jumped to the page top and changed the URL hash. | Replaced with a button. |
 
 ---
 
-## 四、测试是怎么做的（不用测试币）
+## 4. Historical test method without test ETH
 
-千鳥卡住的地方是"审批、提款、退款没测完，Sepolia 测试币不够"。这两个流程都需要**多笔真实交易 + 两个账户**，没有币确实测不动。
+Chidori reported that approval, withdrawal, and refund testing was incomplete because Sepolia test ETH was insufficient. Those manual flows required multiple transactions and at least two accounts.
 
-这里换了个办法：**用 `eth_call` + state override，把链上真实的 runtime bytecode 放到一个测试地址上，手工构造出"已达标 / 已提交成果 / 已投票 / 已过期"等状态，再调用函数看它是否按预期通过或 revert**。`eth_call` 不广播、不花 gas、不需要私钥，但执行的是**同一份部署在链上的字节码**，所以能验证 require 条件、金额计算和状态机。
+The alternative used **`eth_call` with state overrides**. The script fetched the deployed runtime bytecode, placed it at a synthetic test address, and supplied fabricated storage for funded, evidence-submitted, voted, or expired scenarios. It then checked whether individual calls succeeded or reverted. These calls did not broadcast transactions, spend gas, or require a private key.
 
-- **A 组（16 项）**：直接对真实合约的真实状态调用，验证权限和参数校验。
-- **B 组（29 项）**：构造状态，验证审批 / 提款 / 退款 / 阶段顺序 / 重复操作。其中"提款金额"用**托管余额探针**验证：例如总额 100 wei 时，托管放 39 wei 必然下溢 revert、放 40 wei 刚好成功，即可确认第一阶段金额确实是 `floor(2×100/5)=40`。
-- **C 组（31 项）**：前端 `src/utils.js` 与合约公式对齐（40/60 拆分 317 组金额逐一比对、`positiveEth` 非法输入、`safeUrl` 伪协议、错误信息映射）。
+- **Part A (16 assertions)**: calls against the real deployed contract and its state at the time, checking permissions, parameters, and a simulated creation result.
+- **Part B (29 assertions)**: fabricated-state calls covering approval, withdrawal, refund, milestone ordering, and repeated operations. Amount probes compared calls with different escrow balances: for example, a total of 100 wei with 39 wei escrow was expected to fail, while 40 wei was expected to succeed, consistent with a first-stage budget of `floor(2 × 100 / 5) = 40`.
+- **Part C (31 assertions)**: frontend `src/utils.js` checks, including a 40/60 formula comparison across 317 amounts, invalid `positiveEth` inputs, `safeUrl`, error-message mapping, and project filters. The 317 amounts were compared to a locally calculated formula, not to 317 on-chain calls.
 
-### 结果汇总
+**Evidence limits:** each `eth_call` was independent and did not preserve changes for the next call. The script did not inspect post-call storage or actual recipient transfers. Its generic `revert` expectation accepted any caught error, so amount probes did not specifically prove an arithmetic-underflow panic. The original summary's exact-50% boundary claim was not directly asserted by this script. Likewise, clearing escrow, preserving `totalRaised` after refunds, and paying the entire remaining balance were intended behaviors, not post-state results established here. Fabricated overfunding tested withdrawal calculations from supplied state, not a real overfunding contribution transaction.
 
-```
+### Recorded result summary
+
+```text
 ================ 76/76 passed, 0 failed ================
-A 组 16/16   B 组 29/29   C 组 31/31
+Part A 16/16   Part B 29/29   Part C 31/31
 ```
 
-代表性用例：
+Representative recorded cases, with expectations limited to what the script checked:
 
-| 用例 | 预期 | 结果 |
+| Case | Checked expectation | Recorded result |
 | --- | --- | --- |
-| 达标项目：未出资者审批 | revert `Backers only` | PASS |
-| 未提交成果时审批 | revert `Approval not open` | PASS |
-| 已通过后再次审批 / 重复投票 | revert `Approval not open` / `Already approved` | PASS |
-| 阶段未批准时提款 | revert `Milestone not withdrawable` | PASS |
-| 阶段已提款再提款 | revert `Milestone not withdrawable` | PASS |
-| 非发起人提款 | revert `Creator only` | PASS |
-| 总额 100 wei，托管 39 wei 提款 | revert（算术下溢）→ 证明 M1 = 40 wei | PASS |
-| 总额 0.012 ETH 超额出资，托管 0.0048-1 提款 | revert → 证明 M1 = 0.0048 ETH | PASS |
-| 阶段 2 提款（当前阶段 = 1） | 成功，取走全部剩余托管 | PASS |
-| 阶段 1 未提款就提交阶段 2 成果 | revert `Wrong milestone` | PASS |
-| 失败项目：支持者退款 | 成功，托管清零、`totalRaised` 保留 | PASS |
-| 失败项目：重复退款 / 未出资者退款 | revert `No refund available` | PASS |
-| 成功项目退款 / 成功项目 finalize | revert `Project not failed` / `Funding closed` | PASS |
-| 过期未达标 finalize | 成功（任何人可调用） | PASS |
-| 过期后继续出资 | revert `Deadline reached` | PASS |
-| 发起人给自己出资 / 0 金额出资 | revert `Creator cannot contribute` / `Contribution must be positive` | PASS |
-| 前端 40/60 预算 vs 合约 `floor(2t/5)` | 317 组金额完全一致 | PASS |
+| Funded project: approval by a non-backer | Revert `Backers only` | PASS |
+| Approval before evidence submission | Revert `Approval not open` | PASS |
+| Approval after approval / duplicate vote | Revert `Approval not open` / `Already approved` | PASS |
+| Withdrawal before milestone approval | Revert `Milestone not withdrawable` | PASS |
+| Withdrawal of an already withdrawn milestone | Revert `Milestone not withdrawable` | PASS |
+| Withdrawal by a non-creator | Revert `Creator only` | PASS |
+| Total 100 wei, escrow 39 wei: withdrawal | Failure, paired with a successful 40 wei probe; consistent with M1 = 40 wei | PASS |
+| Fabricated total 0.012 ETH, escrow 0.0048 ETH minus 1 wei: withdrawal | Failure, paired with a successful 0.0048 ETH probe | PASS |
+| Milestone 2 withdrawal (`currentMilestone = 1`) | Call succeeds; remaining-balance transfer was not inspected | PASS |
+| Submit milestone 2 evidence before milestone 1 withdrawal | Revert `Wrong milestone` | PASS |
+| Failed project: backer refund | Call succeeds; escrow clearing and unchanged `totalRaised` were not inspected | PASS |
+| Failed project: repeated refund / non-backer refund | Revert `No refund available` | PASS |
+| Refund / finalize on a successful project | Revert `Project not failed` / `Funding closed` | PASS |
+| Finalize after the deadline without reaching the target | Call succeeds from an unrelated account | PASS |
+| Contribute after the deadline | Revert `Deadline reached` | PASS |
+| Creator self-contribution / zero contribution | Revert `Creator cannot contribute` / `Contribution must be positive` | PASS |
+| Frontend 40/60 budgets versus the local `floor(2t/5)` formula | All 317 amounts match | PASS |
 
-### 链上现状快照（2026-10-21 19:xx）
+### Historical chain snapshot (2026-10-21 19:xx)
 
-| # | 名称 | 状态 | 目标 | 已筹 | 托管 | 截止时间 |
+Amounts are in ETH. The original snapshot did not specify a timezone.
+
+| ID | Name | Status | Target | Raised | Escrow | Deadline |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0 | DemoProject | Funding | 0.005 | 0.0005 | 0.0005 | 2026-10-22 18:13 |
 | 1 | Demo project 2 | Funding | 0.0001 | 0 | 0 | 2026-10-22 18:19 |
 
-合约余额 `0.0005 ETH` = 两个项目托管之和，账实相符。两个项目都还是 Funding 状态、没有提交过成果 —— 和"审批/提款/退款还没测"的说法一致。
+The recorded contract balance of `0.0005 ETH` equaled the sum of the two project escrow balances. Both projects were still Funding with no submitted evidence, consistent with the reported absence of completed manual approval, withdrawal, and refund testing at that point.
 
 ---
 
-## 五、还需要人工用测试币验证的部分
+## 5. Manual checks outstanding at the time
 
-模拟测试能覆盖 require 条件和金额计算，但**覆盖不到钱包交互本身**。以下建议由有 Sepolia ETH 的同学用两个账户（A 发起人、B 支持者）走一遍：
+The simulations did not cover actual wallet interactions. The following checklist was proposed for teammates with Sepolia ETH using two accounts: A as creator and B as backer. It is a historical checklist, not a statement that all these checks remain outstanding today; consult the current end-to-end record for their actual status.
 
-| 场景 | 关注点 |
+| Scenario | Expected observation |
 | --- | --- |
-| 真实签名 + 等待确认 | 提示条依次出现"等待钱包确认 → 交易处理中 → 已确认" |
-| 在 MetaMask 里点拒绝 | 显示"Request rejected in MetaMask"，可以重试，不能显示成功 |
-| 余额不足（出资额 > 余额） | 显示"Insufficient Sepolia ETH for the amount and gas" |
-| 中途切换账户 / 切换网络 | 地址、角色按钮、Sepolia 提示同步更新；旧账户的"你已投票"状态不残留 |
-| 刷新页面 | 金额、成果、审批权重、提款记录从链上正确读回 |
-| Etherscan | 每笔交易可查且状态为 Success，金额与页面一致 |
-| 完整 0.01 ETH 流程 | 提款 0.004 + 0.006，托管归零，状态变 Completed |
+| Real signing and confirmation | Feedback progresses from awaiting wallet confirmation to transaction pending to confirmed. |
+| Reject in MetaMask | `Request rejected in MetaMask` appears, retry remains possible, and no success is shown. |
+| Insufficient balance (contribution exceeds balance) | `Insufficient Sepolia ETH for the amount and gas` appears. |
+| Switch account or network during use | Address, role-specific controls, and network notice update; the previous account's approval indicator does not remain. |
+| Refresh the page | Amounts, evidence, approval weight, and withdrawal records reload correctly from chain. |
+| Etherscan | Each transaction is visible with Success status and amounts consistent with the UI. |
+| Complete a 0.01 ETH flow | Withdraw 0.004 + 0.006 ETH, reduce escrow to zero, and reach Completed. |
 
-前端代码里 `transact()` 已经做了"每次重新取 signer + 校验账户未变 + 等 1 个确认 + 检查 receipt.status"，这部分实现是可靠的，主要待验证的是真实钱包下的 UI 反馈。
+The historical code review noted that `transact()` fetched a fresh signer, checked for an account change, waited for one confirmation, and checked `receipt.status`. Those safeguards were present in the reviewed code; they did not by themselves prove correct behavior with a real wallet.
 
 ---
 
-## 六、界面改版（第二轮）
+## 6. Historical interface redesign
 
-在保证逻辑不变的前提下重做了样式与交互，重点解决"看起来简陋"和"点了卡片像没反应"。
+The styles and interactions were reworked with the intention of preserving application logic, improving the visual presentation, and making card selection clearer.
 
-| 方面 | 改动 |
+| Area | Recorded change |
 | --- | --- |
-| 视觉体系 | 统一设计变量（背景、卡片、边框、主色、成功/警告/危险色）、圆角与阴影；标题层级收紧字距；表单聚焦态改为描边 + 光圈 |
-| 头部 | 吸顶 + 毛玻璃；品牌图标；导航改为胶囊按钮；网络状态胶囊（未连接灰 / Sepolia 绿 / 错误网络红）；已连接时钱包按钮变蓝底显示地址 |
-| 首屏 | 主标题 + 一句说明 + 右侧"出资 → 提交成果 → 审批放款"三步卡片；创建页不再显示首屏，直接进表单 |
-| 项目卡 | 状态徽章改为带圆点的彩色胶囊（Funding 蓝 / Successful 绿 / Failed 红 / Completed 灰 / 待结算 橙）；进度条渐变并按状态换色；卡片悬停浮起、选中显示蓝色描边 |
-| 筛选 | 新增"全部 / 我创建的 / 我出资的 / 待我审批"四个筛选，带数量；未连接钱包时禁用并提示；筛选只作用于当前页，无结果时给出明确空状态 |
-| 详情 | 选中项目后自动平滑滚动到详情；详情右上角加关闭按钮；关键数字改为四宫格统计卡；阶段卡改为"编号圆点 + 状态胶囊 + 预算/已释放 + 审批进度条" |
-| 金额文案 | Funding 阶段不再写死"Budget after successful funding"，改为"Projected budget / —"，并注明"based on X ETH raised so far"，避免把动态值当成最终预算 |
-| 反馈 | 交易提示改为右下角浮层 toast，按状态配色，带加载动画、Etherscan 链接和关闭按钮；成功 7 秒、失败 12 秒后自动收起 |
-| 加载 | 首次加载显示 4 张骨架卡；列表右上角显示"Updated 20:48:52 · auto-refresh 15s" |
-| 响应式 | 去掉 `min-width: 1000px`；1000px 以下单列、720px 以下头部换行、统计卡单列、toast 贴底，430px 宽度可正常使用 |
+| Visual system | Shared tokens for backgrounds, cards, borders, primary/success/warning/error colors, radii, and shadows; tighter heading letter spacing; outlined focus states with a glow. |
+| Header | Sticky translucent header, brand icon, pill navigation, and network badges: gray when disconnected, green for Sepolia, red for the wrong network. The connected wallet button displayed the address on blue. |
+| Introductory section | Title, description, and a three-step contribution → evidence → approval/release guide; omitted on the creation page to show the form directly. |
+| Project cards | Dot-and-pill status badges: blue Funding, green Successful, red Failed, gray Completed, and orange awaiting finalization. Gradient progress bars, hover elevation, and a blue selected outline. |
+| Filters | All projects / Created by me / I backed / Needs my approval, with counts. Wallet-dependent filters disabled while disconnected, with a hint. Filtering applied to the current page and showed an explicit empty state. |
+| Details | Smooth scroll after selection, a close button, four statistic cards, and milestone cards showing a numbered marker, status, budget/released amount, and approval progress. |
+| Amount labels | Replaced `Budget after successful funding` during Funding with `Projected budget` or `—`, and clarified the amount raised so far. |
+| Feedback | Bottom-right, status-colored toasts with a spinner, Etherscan link, and close button; automatic dismissal after 7 seconds for success and 12 seconds for failure. |
+| Loading | Four skeleton cards on initial load and an `Updated 20:48:52 · auto-refresh 15s` label. |
+| Responsive layout | Removed `min-width: 1000px`; single-column layout below 1000px, wrapping header and single-column statistics below 720px, and bottom-positioned toasts. Checked at 430px. |
 
-筛选谓词从 `App.jsx` 抽到 `utils.js`（`matchesFilter`），并补了 10 条单元测试，方便后续改动。
+The filter predicate moved from `App.jsx` to `utils.js` as `matchesFilter`, with 10 helper assertions included in the recorded total.
 
-截图见交付目录：`ui-explore.png`（列表）、`ui-detail.png`（详情）、`ui-create.png`（创建）、`ui-connected.png` + `ui-toast.png`（已连接钱包与错误 toast）、`ui-mobile.png`（430px）。
+The original delivery referenced `ui-explore.png` (list), `ui-detail.png` (details), `ui-create.png` (creation), `ui-connected.png` and `ui-toast.png` (connected wallet and error toast), and `ui-mobile.png` (430px). These historical delivery filenames are retained as references; those images are not included in the current repository evidence directory.
 
 ---
 
-## 七、本次改动清单
+## 7. Historical change inventory
 
-| 文件 | 改动 |
+This inventory describes the work recorded in the original report, not the changes made by the present translation.
+
+| File | Recorded change |
 | --- | --- |
-| `.env.example` | 新增：`VITE_CONTRACT_ADDRESS` / `VITE_SEPOLIA_RPC_URL` 模板 + 说明 |
-| `.gitignore` | 新增：忽略 `node_modules/`、`dist/`、`.env.local`、测试产物 |
-| `vite.config.js` | 新增：启用 `@vitejs/plugin-react`，固定端口 5173 |
-| `src/contract.js` | 地址校验和容错（大小写不一致时按全小写重试） |
-| `src/styles.css` | 重写：设计变量 + 组件样式 + 响应式断点；第二轮：左右分栏、详情栏吸顶滚动、卡片元信息 |
-| `src/App.jsx` | 重构布局与交互：首屏、筛选、自动滚动、关闭按钮、toast、骨架屏、更新时间；第二轮：详情右侧常驻栏、卡片倒计时/阶段、合约信息卡 |
-| `src/utils.js` | 新增 `matchesFilter()`，供列表筛选与单元测试共用 |
-| `simulate-tests.mjs` | 新增：76 项模拟测试（含筛选谓词），`node simulate-tests.mjs` 可复跑 |
-| `verify.mjs` | 新增：链上状态 + ABI/字节码一致性检查 |
+| `.env.example` | Added a `VITE_CONTRACT_ADDRESS` / `VITE_SEPOLIA_RPC_URL` template and explanations. |
+| `.gitignore` | Added exclusions for `node_modules/`, `dist/`, `.env.local`, and test output. |
+| `vite.config.js` | Enabled `@vitejs/plugin-react` and set port 5173. |
+| `src/contract.js` | Added lowercase retry for address-checksum validation. |
+| `src/styles.css` | Reworked design tokens, component styles, and responsive breakpoints; later added side-by-side columns, sticky scrollable details, and card metadata. |
+| `src/App.jsx` | Reworked the introduction, filters, scrolling, close controls, toasts, skeletons, and update time; later added the right-side detail panel, countdowns/milestone positions, and a contract information card. |
+| `src/utils.js` | Added `matchesFilter()` for shared list filtering and helper tests. |
+| `simulate-tests.mjs` | Added 76 simulation/helper assertions, including filter checks. The original rerun command was `node simulate-tests.mjs`; its old ABI/layout/live-state assumptions make it unsuitable for current regression testing. |
+| `verify.mjs` | Added chain-state reads and preliminary ABI-selector/bytecode checks, rather than complete source-to-bytecode verification. |
 
-> 两个测试脚本只用于测试，不参与前端构建；不想留在仓库里可以直接删。
-
----
-
-## 八、建议的下一步
-
-1. **先修地址**：`.env.local` 用 `0x9b824CA674432B390E30A5164a76c04EeAa8f686`（或拉这次改动，容错已生效）。
-2. **谁有币谁走第五节**，把交易哈希和截图贴回群里 —— 这是目前唯一还缺的一环。
-3. **可选的产品化**：项目详情加"分享链接"（把选中项目写进 URL，刷新后仍能定位）；创建页加实时预算预览（输入目标就显示 40/60 两阶段金额）。
-4. **合约层面**（可选，答辩时是加分点）：README 已经承认"支持者不审批资金会永久锁定"，可以加一个审批截止时间 + 超时后发起人可提取、或支持者可按比例退出。
+> Both scripts were test tools outside the frontend build. The original report described them as optional to retain; they are now retained as historical tooling. Running the simulation script would overwrite `simulation-results.json`.
 
 ---
 
-## 九、UI 第二轮调整（本次）
+## 8. Next steps proposed in the original report
 
-第一轮把视觉语言定下来了，第二轮解决的是"点了卡片像没反应"和"详情太长要自己滚"这两个实际操作问题：
+These are historical recommendations, not current submission requirements or instructions to configure the newer deployment with the old address.
 
-| 调整 | 原因 |
+1. **Correct the old address**: use `0x9b824CA674432B390E30A5164a76c04EeAa8f686` in `.env.local`, or use the checksum-tolerant code.
+2. **Complete the manual checklist in Section 5** with funded test accounts and share transaction hashes and screenshots. The original report called this the remaining acceptance gap at that time; later evidence must be assessed separately.
+3. **Optional product improvements**: a shareable project URL that preserves selection after refresh, and a live 40/60 budget preview on the creation form.
+4. **Optional contract improvement proposed then**: address the old README's limitation that non-approval could lock funds indefinitely by adding an approval deadline and a timeout path, such as creator withdrawal or proportional backer exit. This was a historical design suggestion, not a validated design or a guarantee of assessment credit. The newer contract's implemented timeout/refund rules supersede that open-ended proposal.
+
+---
+
+## 9. Historical second-round UI adjustments
+
+After the initial visual work, the second round focused on clearer card selection and easier access to long project details.
+
+| Adjustment | Reason |
 | --- | --- |
-| 列表 + 详情改成左右分栏（≥1120px） | 详情常驻右栏并吸顶，点卡片不用再滚动；未选中时右栏显示规则说明，不会空一块 |
-| 右栏内容超过视口时内部滚动 | 详情比一屏长，吸顶元素如果不可滚动，底部内容永远看不到 |
-| 卡片增加倒计时 / 阶段位置 | 众筹最需要"还剩多久"，之前只有绝对时间戳；已结束的项目改显示阶段位置 |
-| 卡片底部增加"你已出资"标记 | 组员测试时能一眼看出哪些项目自己参与过 |
-| 列表下方加合约信息卡 | 地址可一键复制，顺手填掉分栏后的空白区域；也避免再把地址复制错 |
-| 里程碑文案压缩（预算合并成一行、门槛说明缩短） | 右栏变窄后原来两行文案会挤成四行，右栏总高度从 ~1260px 降到 ~1100px |
-| 窄屏（≤1120px）自动折叠成单列 | 单列时详情排在列表下方，选中项目后自动滚到详情；未选中时隐藏空占位 |
+| Side-by-side list and details at ≥1120px | Kept sticky details in the right column so selection did not require scrolling; an explanation occupied the column when no project was selected. |
+| Internal scrolling when the right panel exceeded the viewport | Kept the bottom of a long sticky detail panel reachable. |
+| Countdown / milestone position on cards | Showed time remaining during funding, and milestone position afterward. |
+| Contribution badge at the bottom of cards | Made projects backed by the connected account easy to identify. |
+| Contract information card below the list | Provided one-click address copying and used the space beneath the cards. |
+| Shorter milestone copy, including a one-line budget and shorter threshold explanation | Reduced wrapping in the narrower right column; the recorded panel height decreased from about 1260px to about 1100px. |
+| Single-column layout on narrow screens (≤1120px) | Placed details below the list, scrolled to them after selection, and hid the empty placeholder. |
