@@ -39,13 +39,18 @@ Use three MetaMask accounts for the walkthrough. **A** creates the project and c
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | A creates a project with a **0.01 ETH** target, a future funding deadline and two milestone goals. | The project appears as **Funding**. |
-| 2 | B contributes **0.005 ETH**. C sends **0.006 ETH**. | The contract accepts **0.005 ETH** from C and returns **0.001 ETH** in the same transaction. The project reaches its target and becomes **Successful**. |
+| 1 | A creates a project with a **0.0001 ETH** target, a future funding deadline and two milestone goals. | The project appears as **Funding**. |
+| 2 | B and C each contribute **0.00005 ETH**. | The project reaches its target and becomes **Successful**. |
 | 3 | A submits a milestone 1 summary and an HTTP or HTTPS evidence link. B approves, then C approves. | B's vote represents exactly **50%**, so the milestone remains in review. C's vote takes the total above 50% and the milestone becomes **Approved**. |
-| 4 | A clicks **Release & withdraw** for milestone 1. | A receives **0.004 ETH**. The remaining **0.006 ETH** stays in escrow and milestone 2 opens. |
-| 5 | A submits milestone 2 evidence. B and C approve it, then A clicks **Release & withdraw**. | A receives **0.006 ETH**. The project becomes **Completed** and its escrow balance is zero. |
+| 4 | A clicks **Release to creator balance** for milestone 1. | A can claim **0.00004 ETH**. The remaining **0.00006 ETH** stays in escrow and milestone 2 opens. |
+| 5 | A clicks **Withdraw payout**, keeping A as the recipient. | A claims **0.00004 ETH** in a separate transaction; the claimable balance becomes zero. |
+| 6 | A submits milestone 2 evidence. B approves, then C approves. | The approval weight rises from **50%** to **100%** and milestone 2 becomes **Approved**. |
+| 7 | A clicks **Release to creator balance** for milestone 2. | The project becomes **Completed**, escrow is zero and **0.00006 ETH** remains available to claim. |
+| 8 | A clicks **Withdraw payout**, then refreshes the page. | A claims the remaining **0.00006 ETH**. The page retains **Completed**, both milestones are **Released**, and no payout remains available. |
 
-A can also choose **Release to creator balance**. This advances the project and credits A's claimable balance. A can collect it with **Withdraw payout** in a separate transaction, with the option to specify a recipient. **Completed** means both allocations have been released from escrow. A can still have a payout to claim.
+This separate release-and-claim workflow was manually completed on **2026-11-07** for **Test Project 03 (#002)**. The [acceptance record](docs/e2e-test-record.md) contains all **13 confirmed transactions**, state snapshots and screenshots. **Completed** means both allocations have been released from escrow; the creator can still have a payout to claim, as step 7 demonstrates.
+
+A can alternatively choose **Release & withdraw** to release and collect an approved milestone in one transaction. **Withdraw payout** also supports a different recipient. Contributions are capped at the target, with any excess returned in the same transaction. These alternatives were not exercised in the recorded November 7 browser walkthrough; see the acceptance record for the remaining manual checks.
 
 The website shows release controls to the creator, whose account pays gas for that transaction. The on-chain `releaseMilestone` function allows any account to release an eligible stage. `withdrawMilestone` and `claimPayout` require the creator.
 
@@ -62,7 +67,7 @@ The contract uses the block timestamp. Evidence and approvals must be included i
 - **Funding target missed.** After the funding deadline, any account can click **Finalize funding**. Backers can then use **Claim refund** to recover their full accepted contributions.
 - **Funded project times out.** If the current milestone misses its submission or approval deadline, backers can use **Claim refund** once the page confirms expiry on-chain. The first claim fixes the remaining escrow pool and marks the project **Expired**. Each backer receives their share of that pool in proportion to their accepted contributions, rounded down to a whole wei. Amounts already released to the creator's balance are outside the pool.
 
-The live demo includes **Test Project 02 (#001)** for a completed two-stage payout and **Test Project 01 (#000)** for a milestone timeout and refund. Use the transaction links to inspect amounts separately from gas fees.
+The recorded demo also shows **Test Project 02 (#001)** as completed and **Test Project 01 (#000)** as expired with refunds open. Those project cards alone do not establish that refunds were claimed. Use the transaction links in the acceptance record to inspect the verified **#002** workflow separately from gas fees.
 
 ## Architecture and repository layout
 
@@ -84,11 +89,13 @@ npm test
 npm run build
 ```
 
-Run these commands after `npm ci`. The tests use a local EVM and simulated wallet calls. The build writes the production frontend to `dist/`. Run `npm run preview` to serve that build locally.
+Run these commands after `npm ci`. The recorded regression run passed **124 tests**: 30 contract tests, 81 frontend utility/wallet tests and 13 deployment-verifier tests. Tests use a local EVM, simulated wallet calls and saved deployment fixtures. The build writes the production frontend to `dist/`. Run `npm run preview` to serve that build locally.
 
 GitHub Actions installs dependencies, checks formatting, runs tests and builds the app. Successful runs on `main` publish the build to GitHub Pages with the `/dapp/` base path. For a separate Pages setup, choose **GitHub Actions** as the publishing source and configure the two repository variables shown in [Run locally](#run-locally).
 
-The repository also contains the [automated testing notes](docs/automated-testing.md) and [earlier v1 deployment evidence](docs/deployment-verification.md).
+See the [automated testing notes](docs/automated-testing.md), [manual acceptance record](docs/e2e-test-record.md) and [deployment verification](docs/deployment-verification.md) for evidence and scope. The current deployment matches the local executable after substitutions at compiler-declared immutable locations; its metadata does **not** match. This is reported as `immutable-substitution-match`, not a full runtime match. To repeat the read-only check and save a new evidence bundle, run `npm run verify:deployment`.
+
+The [October 21 simulation report](TEST-REPORT.md) and older deployment records are historical evidence for a different contract instance. Raw evidence, including original on-chain text and user quotations, is preserved verbatim; the submission documentation is in English.
 
 ## Deploy a separate Sepolia contract
 
