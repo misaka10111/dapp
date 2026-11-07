@@ -128,29 +128,49 @@ function splitRuntime(code) {
   }
 }
 
-// Solidity emits immutable variables as two-byte zero placeholders in the
-// compiled runtime; the constructor substitutes the actual values at deploy
-// time. Return the placeholder slots when every executable difference is a
-// zero placeholder locally with a non-zero on-chain word, otherwise null.
-function immutableSubstitution(localExecutable, onChainExecutable) {
+// Only the compiler can identify immutable placeholders. All other executable
+// bytes must match, and each occurrence of one variable must contain one value.
+function immutableSubstitution(localExecutable, onChainExecutable, references) {
   const local = Buffer.from(localExecutable.slice(2), "hex");
   const onChainBytes = Buffer.from(onChainExecutable.slice(2), "hex");
-  if (local.length !== onChainBytes.length) return null;
-  const differences = [];
-  for (let i = 0; i < local.length; i++) {
-    if (local[i] !== onChainBytes[i]) differences.push(i);
-  }
-  if (differences.length === 0 || differences.length % 2 !== 0) return null;
+  if (local.length !== onChainBytes.length || local.equals(onChainBytes)) return null;
+  const substituted = Buffer.from(local);
+  const covered = new Set();
   const slots = [];
-  for (let i = 0; i < differences.length; i += 2) {
-    const position = differences[i];
-    if (differences[i + 1] !== position + 1) return null;
-    if (local.readUInt16BE(position) !== 0) return null;
-    const onChainWord = onChainBytes.readUInt16BE(position);
-    if (onChainWord === 0) return null;
-    slots.push({ position, onChainWord });
+  for (const [variableId, locations] of Object.entries(references)) {
+    let value;
+    for (const { start: position, length } of locations) {
+      if (!Number.isSafeInteger(position) || !Number.isSafeInteger(length)
+        || position < 0 || length <= 0 || position + length > local.length) return null;
+      for (let i = position; i < position + length; i++) {
+        if (covered.has(i) || local[i] !== 0) return null;
+        covered.add(i);
+      }
+      const onChainValue = "0x" + onChainBytes.subarray(position, position + length).toString("hex");
+      if (value !== undefined && value !== onChainValue) return null;
+      value = onChainValue;
+      onChainBytes.copy(substituted, position, position, position + length);
+      slots.push({ variableId, position, length, onChainValue, decimalValue: BigInt(onChainValue).toString() });
+    }
   }
-  return slots;
+  return slots.length > 0 && substituted.equals(onChainBytes) ? slots : null;
+}
+
+export function compareRuntime(localRuntime, onChainRuntime, immutableReferences = {}) {
+  const local = splitRuntime(localRuntime);
+  const onChain = splitRuntime(onChainRuntime);
+  const recognized = local.metadata.recognized && onChain.metadata.recognized;
+  const fullMatch = localRuntime === onChainRuntime;
+  const executableMatch = recognized && local.executable === onChain.executable;
+  const immutableSlots = recognized
+    ? immutableSubstitution(local.executable, onChain.executable, immutableReferences)
+    : null;
+  const immutableMatch = immutableSlots !== null;
+  const metadataMatch = recognized && local.metadata.cborHex === onChain.metadata.cborHex;
+  return {
+    fullMatch, executableMatch, immutableMatch, immutableSlots, metadataMatch,
+    substitutedFullMatch: immutableMatch && metadataMatch,
+  };
 }
 
 async function verify(config) {
@@ -172,7 +192,7 @@ async function verify(config) {
     const onChain = splitRuntime(code);
     if (!onChain.metadata.recognized) throw new Error("Solidity CBOR metadata not recognized; refusing speculative stripping.");
 
-    const candidates = [], seen = new Set();
+    const candidates = [], seen = new Map();
     let best = null;
     const compilers = [
       { label: "solc", compiler: solc, evms: ["paris", "shanghai", "cancun"] },
@@ -183,24 +203,22 @@ async function verify(config) {
         language: "Solidity", sources: { [sourcePath]: { content } },
         settings: {
           optimizer: { enabled, runs: 200 }, evmVersion,
-          outputSelection: { "*": { "*": ["abi", "evm.deployedBytecode.object", "metadata"] } },
+          outputSelection: { "*": { "*": ["abi", "evm.deployedBytecode.object", "evm.deployedBytecode.immutableReferences", "metadata"] } },
         },
       };
       const compilerVersion = engine.compiler.version();
       const key = compilerVersion + JSON.stringify(input);
-      if (seen.has(key)) return null;
+      if (seen.has(key)) return seen.get(key);
       if (seen.size >= 64) throw new Error("Bounded compiler search limit reached.");
-      seen.add(key);
       const output = JSON.parse(engine.compiler.compile(JSON.stringify(input)));
       const errors = (output.errors || []).filter((item) => item.severity === "error");
       if (errors.length) throw new Error(errors.map((item) => item.formattedMessage).join("\n"));
       const artifact = output.contracts[sourcePath].MilestoneFund;
       const runtime = "0x" + artifact.evm.deployedBytecode.object;
       const split = splitRuntime(runtime);
-      const fullMatch = runtime === code;
-      const executableMatch = split.metadata.recognized && split.executable === onChain.executable;
-      const immutableSlots = executableMatch ? [] : immutableSubstitution(split.executable, onChain.executable);
-      const immutableMatch = immutableSlots !== null;
+      const immutableReferences = artifact.evm.deployedBytecode.immutableReferences || {};
+      const comparison = compareRuntime(runtime, code, immutableReferences);
+      const { fullMatch, executableMatch, immutableMatch } = comparison;
       const summary = {
         id: candidates.length + 1, package: engine.label, compilerVersion,
         optimizer: { enabled, runs: 200 }, evmVersion, viaIR: false,
@@ -208,9 +226,10 @@ async function verify(config) {
         standardInputSha256: sha256(JSON.stringify(input)), repositoryDefault,
         runtimeBytes: (runtime.length - 2) / 2, runtimeKeccak256: keccak256(runtime),
         executableBytes: (split.executable.length - 2) / 2, executableKeccak256: keccak256(split.executable),
-        metadata: split.metadata, fullMatch, executableMatch, immutableMatch, immutableSlots,
+        metadata: split.metadata, ...comparison, immutableReferences,
         abiMatchesRepository: JSON.stringify(artifact.abi) === JSON.stringify(repositoryAbi),
       };
+      seen.set(key, summary);
       candidates.push(summary);
       // Rank: full byte match 3 > immutable-substitution match 2 > executable-only 1.
       const rank = fullMatch ? 3 : immutableMatch ? 2 : executableMatch ? 1 : 0;
@@ -261,7 +280,9 @@ async function verify(config) {
           role: "immutable-substitution",
           file: stem + "-immutable.json",
           content: json({
-            explanation: "Each slot is a two-byte immutable placeholder (zero in compiled runtime) substituted with the constructor value at deployment.",
+            explanation: "Slots come from solc immutableReferences. Every executable byte outside those ranges matches, and all occurrences of each variable contain the same on-chain value. Values are observed from runtime, not independently recovered from the deployment transaction. Metadata equality is recorded separately.",
+            metadataMatch: best.summary.metadataMatch,
+            substitutedFullMatch: best.summary.substitutedFullMatch,
             slots: best.summary.immutableSlots,
           }),
         });
@@ -271,7 +292,7 @@ async function verify(config) {
       if (fs.existsSync(filename)) throw new Error(`Refusing to overwrite evidence: ${filename}`);
     }
     const result = {
-      schemaVersion: 1, observedAt: new Date().toISOString(), status,
+      schemaVersion: 2, observedAt: new Date().toISOString(), status,
       chainId: 11155111, address: config.address,
       rpc: { origin: new URL(config.rpc).origin, endpointSha256: sha256(config.rpc), credentialsAndPathOmitted: true },
       block: { number: block.number, hash: block.hash, timestamp: block.timestamp, timeUTC: new Date(block.timestamp * 1000).toISOString(), timeBeijing: new Date((block.timestamp + 28800) * 1000).toISOString().replace("T", " ").replace(".000Z", " UTC+08:00") },
@@ -280,7 +301,7 @@ async function verify(config) {
       onChain: { runtimeBytes: (code.length - 2) / 2, runtimeKeccak256: keccak256(code), executableBytes: (onChain.executable.length - 2) / 2, executableKeccak256: keccak256(onChain.executable), metadata: onChain.metadata },
       search: { maxCompiles: 64, actualCompiles: candidates.length, optimizerEnabled: [false, true], optimizerRuns: [200], viaIR: false, compilerEvmCandidates: compilers.map((item) => ({ package: item.label, evmVersions: item.evms })), metadataRefinements: { sourcePaths: ["MilestoneFund.sol", "contracts/MilestoneFund.sol"], newlines: ["LF", "CRLF"] }, stoppedAfterFirstSourceProvenMatch: status === "full-match" || status === "immutable-substitution-match" },
       repositoryDefault: candidates[0], matchedCandidate: best?.summary || null, candidates,
-      comparisonScope: "Full match compares every runtime byte, including validated CBOR metadata. Executable-only comparison strips only the recognized CBOR trailer and its two-byte length. An immutable-substitution match requires equal-length executables where every difference is a two-byte zero placeholder locally substituted with a non-zero on-chain constructor value; the slot positions and values are recorded in the immutable evidence file. No opcode normalization or selector-only comparison is used. This verifies runtime at the fixed block, not creation transaction provenance or security.",
+      comparisonScope: "Full match compares every runtime byte, including validated CBOR metadata. Executable-only comparison strips only the recognized CBOR trailer and its two-byte length and is not an immutable match. An immutable-substitution match permits changes only within solc immutableReferences, requires consistent values across all occurrences of each variable, and compares every other executable byte. Metadata equality is reported separately as metadataMatch; substitutedFullMatch also requires metadata equality. Immutable values are observed from runtime, not independently recovered from constructor arguments. This verifies runtime at the fixed block, not creation transaction provenance or security.",
       unchanged: ["contracts/MilestoneFund.sol", "scripts/compile-contract.mjs", "src/abi/MilestoneFund.json"],
       evidenceFiles: files.map((item) => ({ role: item.role, file: path.basename(item.file), sha256: sha256(item.content), bytes: Buffer.byteLength(item.content) })),
     };
@@ -294,12 +315,14 @@ async function verify(config) {
   }
 }
 
-let config;
-try {
-  config = options();
-  if (config) process.exitCode = await verify(config);
-} catch (error) {
-  const message = String(error?.shortMessage || error?.message || error);
-  console.error(json({ status: "verification-error", message: config?.rpc ? message.replaceAll(config.rpc, "[RPC URL]") : message }));
-  process.exitCode = 1;
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  let config;
+  try {
+    config = options();
+    if (config) process.exitCode = await verify(config);
+  } catch (error) {
+    const message = String(error?.shortMessage || error?.message || error);
+    console.error(json({ status: "verification-error", message: config?.rpc ? message.replaceAll(config.rpc, "[RPC URL]") : message }));
+    process.exitCode = 1;
+  }
 }

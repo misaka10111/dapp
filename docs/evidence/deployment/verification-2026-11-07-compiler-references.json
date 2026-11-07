@@ -1,0 +1,400 @@
+{
+  "schemaVersion": 2,
+  "observedAt": "2026-11-07T06:34:18.608Z",
+  "status": "immutable-substitution-match",
+  "chainId": 11155111,
+  "address": "0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F",
+  "rpc": {
+    "origin": "https://ethereum-sepolia-rpc.publicnode.com",
+    "endpointSha256": "18dddd47c8f4b183a5b2322a292c534f78b4c31ed168fbbc1af18f41767f3899",
+    "credentialsAndPathOmitted": true
+  },
+  "block": {
+    "number": 12081918,
+    "hash": "0xbfe3890624a11ff65b401da54ab681175848e71e5e3dd6cbefe6421a2d282752",
+    "timestamp": 1794033252,
+    "timeUTC": "2026-11-07T06:34:12.000Z",
+    "timeBeijing": "2026-11-07 14:34:12 UTC+08:00"
+  },
+  "source": {
+    "file": "contracts/MilestoneFund.sol",
+    "sha256": "072b7795986e5fdd3d9efbec3950c808fbe791f9b1829e1ecd08198a6c881bd1",
+    "bytes": 16825,
+    "normalizedLfSha256": "072b7795986e5fdd3d9efbec3950c808fbe791f9b1829e1ecd08198a6c881bd1",
+    "normalizedLfBytes": 16825
+  },
+  "installedCompilers": [
+    {
+      "package": "solc",
+      "version": "0.8.24+commit.e11b9ed9.Emscripten.clang"
+    },
+    {
+      "package": "solc-deployed",
+      "version": "0.8.34+commit.80d5c536.Emscripten.clang"
+    }
+  ],
+  "onChain": {
+    "runtimeBytes": 12717,
+    "runtimeKeccak256": "0xc6c8e7749da17e6b4f18dd73312b0195eae53625685b0fbe18b727043b76b3c3",
+    "executableBytes": 12664,
+    "executableKeccak256": "0xbad2b1631e9e4788364a9189f5abd56eab3a0adb38192541ad079025bbfd3287",
+    "metadata": {
+      "recognized": true,
+      "cborBytes": 51,
+      "strippedBytes": 53,
+      "compilerVersion": "0.8.24",
+      "cborHex": "0xa264697066735822122014fe20bce634f36b1e01e2cf5402852675e2c8e6113f1744d954baa6a4c04f0864736f6c6343000818",
+      "fields": {
+        "ipfs": "0x122014fe20bce634f36b1e01e2cf5402852675e2c8e6113f1744d954baa6a4c04f08",
+        "solc": "0x000818"
+      }
+    }
+  },
+  "search": {
+    "maxCompiles": 64,
+    "actualCompiles": 1,
+    "optimizerEnabled": [
+      false,
+      true
+    ],
+    "optimizerRuns": [
+      200
+    ],
+    "viaIR": false,
+    "compilerEvmCandidates": [
+      {
+        "package": "solc",
+        "evmVersions": [
+          "paris",
+          "shanghai",
+          "cancun"
+        ]
+      },
+      {
+        "package": "solc-deployed",
+        "evmVersions": [
+          "osaka",
+          "prague",
+          "cancun",
+          "shanghai",
+          "paris"
+        ]
+      }
+    ],
+    "metadataRefinements": {
+      "sourcePaths": [
+        "MilestoneFund.sol",
+        "contracts/MilestoneFund.sol"
+      ],
+      "newlines": [
+        "LF",
+        "CRLF"
+      ]
+    },
+    "stoppedAfterFirstSourceProvenMatch": true
+  },
+  "repositoryDefault": {
+    "id": 1,
+    "package": "solc",
+    "compilerVersion": "0.8.24+commit.e11b9ed9.Emscripten.clang",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "evmVersion": "paris",
+    "viaIR": false,
+    "sourcePath": "MilestoneFund.sol",
+    "sourceVariant": "working-tree",
+    "sourceSha256": "072b7795986e5fdd3d9efbec3950c808fbe791f9b1829e1ecd08198a6c881bd1",
+    "sourceBytes": 16825,
+    "standardInputSha256": "4ebabcc9574fbe8b6d9594bee2c997c4305ead8e1878d07cfa3bf0c00a614e52",
+    "repositoryDefault": true,
+    "runtimeBytes": 12717,
+    "runtimeKeccak256": "0x8fa461507d819f985a060fb473ee0e42c8b4a34dd97ff30c370f9b1311a89e2f",
+    "executableBytes": 12664,
+    "executableKeccak256": "0xcc2f116bad17db28135030c2843e5603f8511fedc8387168ca629e616dfe304a",
+    "metadata": {
+      "recognized": true,
+      "cborBytes": 51,
+      "strippedBytes": 53,
+      "compilerVersion": "0.8.24",
+      "cborHex": "0xa2646970667358221220c1372e007e8039adf51e0a09f3f7002c377cf4299316a8d3475b24493b0a04c464736f6c6343000818",
+      "fields": {
+        "ipfs": "0x1220c1372e007e8039adf51e0a09f3f7002c377cf4299316a8d3475b24493b0a04c4",
+        "solc": "0x000818"
+      }
+    },
+    "fullMatch": false,
+    "executableMatch": false,
+    "immutableMatch": true,
+    "immutableSlots": [
+      {
+        "variableId": "52",
+        "position": 1046,
+        "length": 32,
+        "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+        "decimalValue": "600"
+      },
+      {
+        "variableId": "52",
+        "position": 9324,
+        "length": 32,
+        "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+        "decimalValue": "600"
+      },
+      {
+        "variableId": "55",
+        "position": 994,
+        "length": 32,
+        "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+        "decimalValue": "600"
+      },
+      {
+        "variableId": "55",
+        "position": 9431,
+        "length": 32,
+        "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+        "decimalValue": "600"
+      }
+    ],
+    "metadataMatch": false,
+    "substitutedFullMatch": false,
+    "immutableReferences": {
+      "52": [
+        {
+          "length": 32,
+          "start": 1046
+        },
+        {
+          "length": 32,
+          "start": 9324
+        }
+      ],
+      "55": [
+        {
+          "length": 32,
+          "start": 994
+        },
+        {
+          "length": 32,
+          "start": 9431
+        }
+      ]
+    },
+    "abiMatchesRepository": true
+  },
+  "matchedCandidate": {
+    "id": 1,
+    "package": "solc",
+    "compilerVersion": "0.8.24+commit.e11b9ed9.Emscripten.clang",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "evmVersion": "paris",
+    "viaIR": false,
+    "sourcePath": "MilestoneFund.sol",
+    "sourceVariant": "working-tree",
+    "sourceSha256": "072b7795986e5fdd3d9efbec3950c808fbe791f9b1829e1ecd08198a6c881bd1",
+    "sourceBytes": 16825,
+    "standardInputSha256": "4ebabcc9574fbe8b6d9594bee2c997c4305ead8e1878d07cfa3bf0c00a614e52",
+    "repositoryDefault": true,
+    "runtimeBytes": 12717,
+    "runtimeKeccak256": "0x8fa461507d819f985a060fb473ee0e42c8b4a34dd97ff30c370f9b1311a89e2f",
+    "executableBytes": 12664,
+    "executableKeccak256": "0xcc2f116bad17db28135030c2843e5603f8511fedc8387168ca629e616dfe304a",
+    "metadata": {
+      "recognized": true,
+      "cborBytes": 51,
+      "strippedBytes": 53,
+      "compilerVersion": "0.8.24",
+      "cborHex": "0xa2646970667358221220c1372e007e8039adf51e0a09f3f7002c377cf4299316a8d3475b24493b0a04c464736f6c6343000818",
+      "fields": {
+        "ipfs": "0x1220c1372e007e8039adf51e0a09f3f7002c377cf4299316a8d3475b24493b0a04c4",
+        "solc": "0x000818"
+      }
+    },
+    "fullMatch": false,
+    "executableMatch": false,
+    "immutableMatch": true,
+    "immutableSlots": [
+      {
+        "variableId": "52",
+        "position": 1046,
+        "length": 32,
+        "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+        "decimalValue": "600"
+      },
+      {
+        "variableId": "52",
+        "position": 9324,
+        "length": 32,
+        "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+        "decimalValue": "600"
+      },
+      {
+        "variableId": "55",
+        "position": 994,
+        "length": 32,
+        "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+        "decimalValue": "600"
+      },
+      {
+        "variableId": "55",
+        "position": 9431,
+        "length": 32,
+        "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+        "decimalValue": "600"
+      }
+    ],
+    "metadataMatch": false,
+    "substitutedFullMatch": false,
+    "immutableReferences": {
+      "52": [
+        {
+          "length": 32,
+          "start": 1046
+        },
+        {
+          "length": 32,
+          "start": 9324
+        }
+      ],
+      "55": [
+        {
+          "length": 32,
+          "start": 994
+        },
+        {
+          "length": 32,
+          "start": 9431
+        }
+      ]
+    },
+    "abiMatchesRepository": true
+  },
+  "candidates": [
+    {
+      "id": 1,
+      "package": "solc",
+      "compilerVersion": "0.8.24+commit.e11b9ed9.Emscripten.clang",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "evmVersion": "paris",
+      "viaIR": false,
+      "sourcePath": "MilestoneFund.sol",
+      "sourceVariant": "working-tree",
+      "sourceSha256": "072b7795986e5fdd3d9efbec3950c808fbe791f9b1829e1ecd08198a6c881bd1",
+      "sourceBytes": 16825,
+      "standardInputSha256": "4ebabcc9574fbe8b6d9594bee2c997c4305ead8e1878d07cfa3bf0c00a614e52",
+      "repositoryDefault": true,
+      "runtimeBytes": 12717,
+      "runtimeKeccak256": "0x8fa461507d819f985a060fb473ee0e42c8b4a34dd97ff30c370f9b1311a89e2f",
+      "executableBytes": 12664,
+      "executableKeccak256": "0xcc2f116bad17db28135030c2843e5603f8511fedc8387168ca629e616dfe304a",
+      "metadata": {
+        "recognized": true,
+        "cborBytes": 51,
+        "strippedBytes": 53,
+        "compilerVersion": "0.8.24",
+        "cborHex": "0xa2646970667358221220c1372e007e8039adf51e0a09f3f7002c377cf4299316a8d3475b24493b0a04c464736f6c6343000818",
+        "fields": {
+          "ipfs": "0x1220c1372e007e8039adf51e0a09f3f7002c377cf4299316a8d3475b24493b0a04c4",
+          "solc": "0x000818"
+        }
+      },
+      "fullMatch": false,
+      "executableMatch": false,
+      "immutableMatch": true,
+      "immutableSlots": [
+        {
+          "variableId": "52",
+          "position": 1046,
+          "length": 32,
+          "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+          "decimalValue": "600"
+        },
+        {
+          "variableId": "52",
+          "position": 9324,
+          "length": 32,
+          "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+          "decimalValue": "600"
+        },
+        {
+          "variableId": "55",
+          "position": 994,
+          "length": 32,
+          "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+          "decimalValue": "600"
+        },
+        {
+          "variableId": "55",
+          "position": 9431,
+          "length": 32,
+          "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+          "decimalValue": "600"
+        }
+      ],
+      "metadataMatch": false,
+      "substitutedFullMatch": false,
+      "immutableReferences": {
+        "52": [
+          {
+            "length": 32,
+            "start": 1046
+          },
+          {
+            "length": 32,
+            "start": 9324
+          }
+        ],
+        "55": [
+          {
+            "length": 32,
+            "start": 994
+          },
+          {
+            "length": 32,
+            "start": 9431
+          }
+        ]
+      },
+      "abiMatchesRepository": true
+    }
+  ],
+  "comparisonScope": "Full match compares every runtime byte, including validated CBOR metadata. Executable-only comparison strips only the recognized CBOR trailer and its two-byte length and is not an immutable match. An immutable-substitution match permits changes only within solc immutableReferences, requires consistent values across all occurrences of each variable, and compares every other executable byte. Metadata equality is reported separately as metadataMatch; substitutedFullMatch also requires metadata equality. Immutable values are observed from runtime, not independently recovered from constructor arguments. This verifies runtime at the fixed block, not creation transaction provenance or security.",
+  "unchanged": [
+    "contracts/MilestoneFund.sol",
+    "scripts/compile-contract.mjs",
+    "src/abi/MilestoneFund.json"
+  ],
+  "evidenceFiles": [
+    {
+      "role": "on-chain-runtime",
+      "file": "verification-2026-11-07-compiler-references-runtime.hex",
+      "sha256": "832542e5f86b99bb7bb2c30bd35e82efff7846bf5e94d383fc0301c2b29a9624",
+      "bytes": 25437
+    },
+    {
+      "role": "matching-standard-input",
+      "file": "verification-2026-11-07-compiler-references-standard-input.json",
+      "sha256": "74a9b1fc352ac8c892685b5403656bb7bb28a0770b61b96c26deaea70f31f4e5",
+      "bytes": 17693
+    },
+    {
+      "role": "matching-compiler-metadata",
+      "file": "verification-2026-11-07-compiler-references-metadata.json",
+      "sha256": "d5d030e76f5cde94e1eee45f7b0908bfc5e2655d3217cfabb5f7e35ea18f0b04",
+      "bytes": 12927
+    },
+    {
+      "role": "immutable-substitution",
+      "file": "verification-2026-11-07-compiler-references-immutable.json",
+      "sha256": "72f4491f8996f6e94635a254610201749bb14dcf3d0ebf725bde74b8cd246dae",
+      "bytes": 1211
+    }
+  ]
+}

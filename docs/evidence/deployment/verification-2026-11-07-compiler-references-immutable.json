@@ -1,0 +1,35 @@
+{
+  "explanation": "Slots come from solc immutableReferences. Every executable byte outside those ranges matches, and all occurrences of each variable contain the same on-chain value. Values are observed from runtime, not independently recovered from the deployment transaction. Metadata equality is recorded separately.",
+  "metadataMatch": false,
+  "substitutedFullMatch": false,
+  "slots": [
+    {
+      "variableId": "52",
+      "position": 1046,
+      "length": 32,
+      "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+      "decimalValue": "600"
+    },
+    {
+      "variableId": "52",
+      "position": 9324,
+      "length": 32,
+      "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+      "decimalValue": "600"
+    },
+    {
+      "variableId": "55",
+      "position": 994,
+      "length": 32,
+      "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+      "decimalValue": "600"
+    },
+    {
+      "variableId": "55",
+      "position": 9431,
+      "length": 32,
+      "onChainValue": "0x0000000000000000000000000000000000000000000000000000000000000258",
+      "decimalValue": "600"
+    }
+  ]
+}
