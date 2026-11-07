@@ -24,7 +24,7 @@ function options() {
   const names = { "--rpc": "rpc", "--address": "address", "--block": "block", "--out": "out", "--timeout-ms": "timeout" };
   for (let i = 2; i < process.argv.length; i++) {
     if (process.argv[i] === "--help") {
-      console.log("node scripts/verify-deployment.mjs [--rpc URL] [--address ADDRESS] [--block NUMBER|latest] [--out FILE.json] [--timeout-ms 20000]\nEnvironment: SEPOLIA_RPC_URL / VITE_SEPOLIA_RPC_URL, CONTRACT_ADDRESS / VITE_CONTRACT_ADDRESS, VERIFY_BLOCK.\nExit: 0 = full runtime match; 2 = executable-only match; 3 = no match; 1 = error. Existing output files are never overwritten.");
+      console.log("node scripts/verify-deployment.mjs [--rpc URL] [--address ADDRESS] [--block NUMBER|latest] [--out FILE.json] [--timeout-ms 20000]\nEnvironment: SEPOLIA_RPC_URL / VITE_SEPOLIA_RPC_URL, CONTRACT_ADDRESS / VITE_CONTRACT_ADDRESS, VERIFY_BLOCK.\nExit: 0 = full runtime match or immutable-substitution match; 2 = executable-only match; 3 = no match; 1 = error. Existing output files are never overwritten.");
       return null;
     }
     const key = names[process.argv[i]];
@@ -128,6 +128,31 @@ function splitRuntime(code) {
   }
 }
 
+// Solidity emits immutable variables as two-byte zero placeholders in the
+// compiled runtime; the constructor substitutes the actual values at deploy
+// time. Return the placeholder slots when every executable difference is a
+// zero placeholder locally with a non-zero on-chain word, otherwise null.
+function immutableSubstitution(localExecutable, onChainExecutable) {
+  const local = Buffer.from(localExecutable.slice(2), "hex");
+  const onChainBytes = Buffer.from(onChainExecutable.slice(2), "hex");
+  if (local.length !== onChainBytes.length) return null;
+  const differences = [];
+  for (let i = 0; i < local.length; i++) {
+    if (local[i] !== onChainBytes[i]) differences.push(i);
+  }
+  if (differences.length === 0 || differences.length % 2 !== 0) return null;
+  const slots = [];
+  for (let i = 0; i < differences.length; i += 2) {
+    const position = differences[i];
+    if (differences[i + 1] !== position + 1) return null;
+    if (local.readUInt16BE(position) !== 0) return null;
+    const onChainWord = onChainBytes.readUInt16BE(position);
+    if (onChainWord === 0) return null;
+    slots.push({ position, onChainWord });
+  }
+  return slots;
+}
+
 async function verify(config) {
   const sourceFile = path.join(root, "contracts/MilestoneFund.sol");
   const rawSource = fs.readFileSync(sourceFile, "utf8");
@@ -174,6 +199,8 @@ async function verify(config) {
       const split = splitRuntime(runtime);
       const fullMatch = runtime === code;
       const executableMatch = split.metadata.recognized && split.executable === onChain.executable;
+      const immutableSlots = executableMatch ? [] : immutableSubstitution(split.executable, onChain.executable);
+      const immutableMatch = immutableSlots !== null;
       const summary = {
         id: candidates.length + 1, package: engine.label, compilerVersion,
         optimizer: { enabled, runs: 200 }, evmVersion, viaIR: false,
@@ -181,27 +208,31 @@ async function verify(config) {
         standardInputSha256: sha256(JSON.stringify(input)), repositoryDefault,
         runtimeBytes: (runtime.length - 2) / 2, runtimeKeccak256: keccak256(runtime),
         executableBytes: (split.executable.length - 2) / 2, executableKeccak256: keccak256(split.executable),
-        metadata: split.metadata, fullMatch, executableMatch,
+        metadata: split.metadata, fullMatch, executableMatch, immutableMatch, immutableSlots,
         abiMatchesRepository: JSON.stringify(artifact.abi) === JSON.stringify(repositoryAbi),
       };
       candidates.push(summary);
-      if (fullMatch || (!best && executableMatch)) best = { summary, input, artifact };
+      // Rank: full byte match 3 > immutable-substitution match 2 > executable-only 1.
+      const rank = fullMatch ? 3 : immutableMatch ? 2 : executableMatch ? 1 : 0;
+      if (rank > 0 && (!best || rank > best.rank)) best = { rank, summary, input, artifact };
       return summary;
     }
 
     // Always record the unchanged repository compile settings first.
     compileCandidate(compilers[0], true, "paris", "MilestoneFund.sol", rawSource, "working-tree", true);
+    const sourceProven = () => best?.summary.fullMatch || best?.summary.immutableMatch;
     outer: for (const engine of compilers) {
       for (const evm of engine.evms) {
         for (const enabled of [false, true]) {
-          if (best?.summary.fullMatch) break outer;
+          if (sourceProven()) break outer;
           const result = compileCandidate(engine, enabled, evm, "MilestoneFund.sol", rawSource, "working-tree");
+          if (sourceProven()) break outer;
           if (!result?.executableMatch || result.fullMatch) continue;
           // Metadata depends on source-unit path and exact bytes, including newlines.
           for (const sourcePath of ["MilestoneFund.sol", "contracts/MilestoneFund.sol"]) {
             for (const [variant, content] of [["LF", normalizedLf], ["CRLF", normalizedLf.replace(/\n/g, "\r\n")]]) {
               compileCandidate(engine, enabled, evm, sourcePath, content, variant);
-              if (best?.summary.fullMatch) break outer;
+              if (sourceProven()) break outer;
             }
           }
         }
@@ -210,7 +241,13 @@ async function verify(config) {
     // Avoid reporting success against a block that changed during compilation.
     const canonical = await rpc(provider.getBlock(block.number), "recheck block hash");
     if (!canonical || canonical.hash !== block.hash) throw new Error("Block hash changed during verification; rerun at a stable block.");
-    const status = best?.summary.fullMatch ? "full-match" : best ? "executable-only-match" : "no-match";
+    const status = best?.summary.fullMatch
+      ? "full-match"
+      : best?.summary.immutableMatch
+        ? "immutable-substitution-match"
+        : best
+          ? "executable-only-match"
+          : "no-match";
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const output = path.resolve(config.out || path.join(root, "docs/evidence/deployment", `verification-${block.number}-${timestamp}.json`));
     if (!output.endsWith(".json")) throw new Error("--out must end in .json");
@@ -219,6 +256,16 @@ async function verify(config) {
     if (best) {
       files.push({ role: "matching-standard-input", file: stem + "-standard-input.json", content: json(best.input) });
       files.push({ role: "matching-compiler-metadata", file: stem + "-metadata.json", content: best.artifact.metadata + "\n" });
+      if (best.summary.immutableMatch && !best.summary.fullMatch) {
+        files.push({
+          role: "immutable-substitution",
+          file: stem + "-immutable.json",
+          content: json({
+            explanation: "Each slot is a two-byte immutable placeholder (zero in compiled runtime) substituted with the constructor value at deployment.",
+            slots: best.summary.immutableSlots,
+          }),
+        });
+      }
     }
     for (const filename of [output, ...files.map((item) => item.file)]) {
       if (fs.existsSync(filename)) throw new Error(`Refusing to overwrite evidence: ${filename}`);
@@ -231,17 +278,17 @@ async function verify(config) {
       source: { file: "contracts/MilestoneFund.sol", sha256: sha256(rawSource), bytes: Buffer.byteLength(rawSource), normalizedLfSha256: sha256(normalizedLf), normalizedLfBytes: Buffer.byteLength(normalizedLf) },
       installedCompilers: compilers.map((item) => ({ package: item.label, version: item.compiler.version() })),
       onChain: { runtimeBytes: (code.length - 2) / 2, runtimeKeccak256: keccak256(code), executableBytes: (onChain.executable.length - 2) / 2, executableKeccak256: keccak256(onChain.executable), metadata: onChain.metadata },
-      search: { maxCompiles: 64, actualCompiles: candidates.length, optimizerEnabled: [false, true], optimizerRuns: [200], viaIR: false, compilerEvmCandidates: compilers.map((item) => ({ package: item.label, evmVersions: item.evms })), metadataRefinements: { sourcePaths: ["MilestoneFund.sol", "contracts/MilestoneFund.sol"], newlines: ["LF", "CRLF"] }, stoppedAfterFirstFullMatch: status === "full-match" },
+      search: { maxCompiles: 64, actualCompiles: candidates.length, optimizerEnabled: [false, true], optimizerRuns: [200], viaIR: false, compilerEvmCandidates: compilers.map((item) => ({ package: item.label, evmVersions: item.evms })), metadataRefinements: { sourcePaths: ["MilestoneFund.sol", "contracts/MilestoneFund.sol"], newlines: ["LF", "CRLF"] }, stoppedAfterFirstSourceProvenMatch: status === "full-match" || status === "immutable-substitution-match" },
       repositoryDefault: candidates[0], matchedCandidate: best?.summary || null, candidates,
-      comparisonScope: "Full match compares every runtime byte, including validated CBOR metadata. Executable-only comparison strips only the recognized CBOR trailer and its two-byte length. No opcode normalization or selector-only comparison is used. This verifies runtime at the fixed block, not creation transaction provenance or security.",
+      comparisonScope: "Full match compares every runtime byte, including validated CBOR metadata. Executable-only comparison strips only the recognized CBOR trailer and its two-byte length. An immutable-substitution match requires equal-length executables where every difference is a two-byte zero placeholder locally substituted with a non-zero on-chain constructor value; the slot positions and values are recorded in the immutable evidence file. No opcode normalization or selector-only comparison is used. This verifies runtime at the fixed block, not creation transaction provenance or security.",
       unchanged: ["contracts/MilestoneFund.sol", "scripts/compile-contract.mjs", "src/abi/MilestoneFund.json"],
       evidenceFiles: files.map((item) => ({ role: item.role, file: path.basename(item.file), sha256: sha256(item.content), bytes: Buffer.byteLength(item.content) })),
     };
     fs.mkdirSync(path.dirname(output), { recursive: true });
     for (const item of files) fs.writeFileSync(item.file, item.content, { flag: "wx" });
     fs.writeFileSync(output, json(result), { flag: "wx" });
-    console.log(json({ status, blockNumber: block.number, blockHash: block.hash, onChainRuntimeBytes: result.onChain.runtimeBytes, runtimeKeccak256: result.onChain.runtimeKeccak256, chainMetadataCompiler: onChain.metadata.compilerVersion, repositoryDefaultFullMatch: candidates[0].fullMatch, repositoryDefaultExecutableMatch: candidates[0].executableMatch, matchedCandidate: best?.summary || null, evidence: output }));
-    return status === "full-match" ? 0 : status === "executable-only-match" ? 2 : 3;
+    console.log(json({ status, blockNumber: block.number, blockHash: block.hash, onChainRuntimeBytes: result.onChain.runtimeBytes, runtimeKeccak256: result.onChain.runtimeKeccak256, chainMetadataCompiler: onChain.metadata.compilerVersion, repositoryDefaultFullMatch: candidates[0].fullMatch, repositoryDefaultExecutableMatch: candidates[0].executableMatch, repositoryDefaultImmutableMatch: candidates[0].immutableMatch, matchedCandidate: best?.summary || null, evidence: output }));
+    return status === "full-match" || status === "immutable-substitution-match" ? 0 : status === "executable-only-match" ? 2 : 3;
   } finally {
     provider.destroy();
   }
