@@ -9,7 +9,7 @@ import { FetchRequest, JsonRpcProvider, getAddress, keccak256 } from "ethers";
 // Read-only deployment verification. No signer, wallet, send method, or ABI writes.
 const root = fileURLToPath(new URL("../", import.meta.url));
 const defaultRpc = "https://ethereum-sepolia-rpc.publicnode.com";
-const defaultAddress = "0x9b824CA674432B390E30A5164a76c04EeAa8f686";
+const defaultAddress = "0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F";
 const sha256 = (value) => crypto.createHash("sha256").update(value).digest("hex");
 const json = (value) => JSON.stringify(value, null, 2) + "\n";
 
