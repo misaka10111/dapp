@@ -1,130 +1,166 @@
 # MilestoneFund
 
-MilestoneFund is a COMP7610 crowdfunding DApp on Ethereum Sepolia. Backers fund a project in escrow and vote on its two milestones using their accepted contributions as voting weight. Once a milestone is approved, it can be released. The first release allocates 40% of the amount raised, rounded down to a whole wei, and the second releases the remainder.
+**Pay for proof, one milestone at a time.**
 
-[Open the live demo](https://misaka10111.github.io/dapp/) · [View the Sepolia contract](https://eth-sepolia.blockscout.com/address/0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F) · [View the deployment transaction](https://eth-sepolia.blockscout.com/tx/0xfd1c8e65e0115251d0904588ede9c19ea28cb75a466931ef34767bf5f7e7133a)
+MilestoneFund is a decentralised crowdfunding application for small projects with two defined deliverables. Backers fund an on-chain escrow before any work is reviewed; the creator submits evidence for each milestone, and funds are released only after a weighted backer vote. If the funding target is missed or a submission or approval window closes, the contract automatically opens refunds — no owner key, no admin, and no platform fees.
 
-Explore is available without a wallet. Connect MetaMask on **Ethereum Sepolia** (chain ID `11155111`) to create a project, contribute, approve a milestone or claim funds. All transactions use Sepolia test ETH.
+- **Live application:** <https://misaka10111.github.io/dapp/>
+- **Sepolia contract:** [`0x5A5A…964F`](https://sepolia.etherscan.io/address/0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F) (chain ID 11155111)
+- **Demo video:** <https://youtu.be/k94OegfoAOg>
+- **Source code:** <https://github.com/misaka10111/dapp>
 
-## Run locally
+Built as the COMP7610 (Introduction to Web3 and Blockchain) final project at The University of Hong Kong.
 
-Use Node.js **22.12 or later**, npm and a desktop browser. GitHub Actions uses Node.js 22. Install MetaMask and fund your demo accounts with Sepolia test ETH if you plan to send transactions.
+## Contents
 
-Clone the repository and install the locked dependencies.
+- [Features](#features)
+- [How it works](#how-it-works)
+- [Smart contract design](#smart-contract-design)
+- [Frontend and wallet integration](#frontend-and-wallet-integration)
+- [Technology stack](#technology-stack)
+- [Project structure](#project-structure)
+- [Getting started](#getting-started)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [Deployment and reproducibility](#deployment-and-reproducibility)
+- [Design limitations](#design-limitations)
+- [License](#license)
+
+## Features
+
+1. **Escrow custody.** Every contribution is held by the contract itself. Funds never sit in the creator's wallet, and the contract has no owner, no admin role and no platform fees.
+2. **Evidence-based milestone votes.** For each milestone the creator records a written summary and a URL to the deliverable. Backers then vote, with weight equal to the ETH the contract accepted from them.
+3. **Strict majority rule.** A milestone passes only when approving weight is strictly above 50% of the total raised. Two equal backers each hold exactly 50%, so both votes are required.
+4. **Contribution cap.** A contribution accepts at most the amount still needed to reach the target. Any excess is returned in the same transaction, and funding closes automatically once the target is met.
+5. **Staged 40% / 60% allocation.** The first milestone releases 40% of the funds, rounded down to a whole wei; the second releases the remaining escrow, including the rounding remainder, so no wei is lost.
+6. **Automatic refunds.** A missed funding target lets backers reclaim their full recorded contributions; a missed submission or approval window opens proportional refunds of the remaining escrow.
+7. **Time-bound windows.** The live deployment gives each submission and approval window 600 seconds, measured by the block timestamp. A transaction must be included in a block before its deadline.
+
+## How it works
+
+```mermaid
+flowchart LR
+    F[Funding<br/>accept up to target<br/>return excess] -->|target reached| S[Milestone 1<br/>submit evidence<br/>approve above 50%<br/>release 40%]
+    S --> M[Milestone 2<br/>submit evidence<br/>approve above 50%<br/>release remainder]
+    M --> C[Completed<br/>both stages released<br/>escrow at zero]
+    F -->|target missed at deadline| X[Failed<br/>finalise, then claim<br/>full contribution]
+    S -->|submission or approval window closes| E[Expired<br/>claim a share of<br/>the fixed escrow pool]
+    M -->|submission or approval window closes| E
+```
+
+The target, deadline and two milestone goals are fixed after creation. The creator's address cannot contribute to its own project, and every repeat operation (duplicate contribution, vote, submission or withdrawal) reverts.
+
+## Smart contract design
+
+The contract is `contracts/MilestoneFund.sol` (Solidity ^0.8.24). Any number of projects share one contract, each with isolated accounting:
+
+- `totalRaised` records historical funding and supplies the denominator for approval and refund calculations.
+- `escrowBalance` tracks the funds still held for the project; `claimablePayouts` tracks allocations released for later collection.
+- Per-backer mappings record contributions, votes and claimed refunds by wallet address.
+
+**Voting and allocation.** Voting weight equals the ETH accepted from each backer, and a milestone passes iff approving weight is strictly greater than 50% of `totalRaised`. The first payout is `floor(2 × totalRaised / 5)` — exactly 40% rounded down to a whole wei. The second payout is the remaining escrow balance, which carries the rounding remainder so the escrow ends at zero.
+
+**Release paths.** `releaseMilestone` can be called by any account and credits the creator's claimable balance; the creator later collects it with `withdrawMilestone`, which supports an arbitrary recipient address. The direct path releases an approved stage and receives its allocation in a single transaction. If a recipient cannot receive ETH, the transaction reverts and the creator can nominate another address.
+
+**Refund math.** When funding fails, backers reclaim their full recorded contributions. When a stage expires, the first successful refund claim fixes the remaining escrow as the refund pool; each share is `contribution × pool / totalRaised`, rounded down to a whole wei. Every eligible backer uses the same fixed pool, so the order of claims never changes anyone's amount, and unallocated dust stays in the escrow ledger.
+
+**Security.** All ETH-sending functions are protected by a custom `nonReentrant` guard, and accounting is updated before any external transfer (checks–effects–interactions). The contract has neither `receive` nor `fallback`, so forced ETH cannot enter it or distort balances.
+
+## Frontend and wallet integration
+
+The web app uses React with Vite as the build tool and Ethers.js for contract calls and ETH/wei conversion.
+
+- A `JsonRpcProvider` against a public Sepolia RPC handles the read-only path; a `BrowserProvider` with MetaMask handles signed transactions.
+- The interface validates the selected chain and account before requesting a signer, and exposes wallet confirmation and pending states. Refreshes read funding, milestone and refund figures from the same block number so the views stay consistent.
+- The read functions `getMilestoneWindow` and `getExpiredRefundAmount` drive the deadline indicators and refund amounts shown in the UI.
+- The Vite build splits vendor code into separate `ethers` and `react` chunks so no chunk exceeds the 500 KB warning threshold.
+
+## Technology stack
+
+| Layer | Technologies |
+| --- | --- |
+| Smart contract | Solidity 0.8.24, custom reentrancy guard, no external dependencies |
+| Frontend | React 19, Vite 7, Ethers.js 6 |
+| Wallet | MetaMask (EIP-1193), Ethereum Sepolia |
+| Testing | Node.js built-in test runner, EthereumJS VM, in-process signed transactions |
+| CI/CD | GitHub Actions quality gate and GitHub Pages deployment |
+
+## Project structure
+
+| Path | Purpose |
+| --- | --- |
+| `contracts/MilestoneFund.sol` | Core contract: project creation, contributions, votes, releases and refunds |
+| `src/App.jsx` | Views, forms, wallet connection and transaction buttons |
+| `src/contract.js` | Reads contract configuration, sets up providers and loads the ABI |
+| `src/utils.js` | Amount formatting, percentages, link checks and error messages |
+| `src/abi/MilestoneFund.json` | ABI kept in sync with the current contract |
+| `scripts/compile-contract.mjs` | Recompiles the contract and regenerates the ABI |
+| `scripts/verify-deployment.mjs` | Read-only bytecode verification with evidence output |
+| `scripts/check-format.mjs` | Dependency-free formatting checks |
+| `tests/` | Continuous-state contract tests, unit tests and a fake EIP-1193 wallet |
+| `.github/workflows/ci.yml` | Quality gate on PRs and Pages deployment on `main` |
+| `vite.config.js` | React plugin and manual vendor chunk splitting |
+
+## Getting started
+
+Requires Node.js 22.12 or later (npm is included). No database, backend server or Hardhat setup is needed.
 
 ```bash
 git clone --branch main https://github.com/misaka10111/dapp.git
 cd dapp
 npm ci
-```
-
-Create `.env.local` in the repository root using the current demo configuration.
-
-```dotenv
-VITE_CONTRACT_ADDRESS=0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F
-VITE_SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
-```
-
-The RPC URL enables read-only browsing. If it is blank, the frontend reads through MetaMask on Sepolia. Vite exposes `VITE_*` variables to the browser, so use public values in these fields. Git ignores `.env.local`.
-
-```bash
+cp .env.example .env.local   # then fill in the values below
 npm run dev
 ```
 
-Open the URL printed by Vite, normally `http://localhost:5173`. Check that Explore shows the contract address above. Restart Vite after editing `.env.local`.
+The development server runs at <http://localhost:5173>. To interact with the contract, connect MetaMask on the Ethereum Sepolia network and keep some test ETH for gas.
 
-## Demonstrate the workflow
-
-Use three MetaMask accounts for the walkthrough. **A** creates the project and claims payouts. **B** and **C** contribute and vote. Each account needs test ETH for gas, and the backers also need the amounts below. Wait for each transaction to confirm and check the connected address after switching accounts.
-
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | A creates a project with a **0.0001 ETH** target, a future funding deadline and two milestone goals. | The project appears as **Funding**. |
-| 2 | B and C each contribute **0.00005 ETH**. | The project reaches its target and becomes **Successful**. |
-| 3 | A submits a milestone 1 summary and an HTTP or HTTPS evidence link. B approves, then C approves. | B's vote represents exactly **50%**, so the milestone remains in review. C's vote takes the total above 50% and the milestone becomes **Approved**. |
-| 4 | A clicks **Release to creator balance** for milestone 1. | A can claim **0.00004 ETH**. The remaining **0.00006 ETH** stays in escrow and milestone 2 opens. |
-| 5 | A clicks **Withdraw payout**, keeping A as the recipient. | A claims **0.00004 ETH** in a separate transaction; the claimable balance becomes zero. |
-| 6 | A submits milestone 2 evidence. B approves, then C approves. | The approval weight rises from **50%** to **100%** and milestone 2 becomes **Approved**. |
-| 7 | A clicks **Release to creator balance** for milestone 2. | The project becomes **Completed**, escrow is zero and **0.00006 ETH** remains available to claim. |
-| 8 | A clicks **Withdraw payout**, then refreshes the page. | A claims the remaining **0.00006 ETH**. The page retains **Completed**, both milestones are **Released**, and no payout remains available. |
-
-This separate release-and-claim workflow was manually completed on **2026-11-07** for **Test Project 03 (#002)**. The [acceptance record](docs/e2e-test-record.md) contains all **13 confirmed transactions**, state snapshots and screenshots. **Completed** means both allocations have been released from escrow; the creator can still have a payout to claim, as step 7 demonstrates.
-
-A can alternatively choose **Release & withdraw** to release and collect an approved milestone in one transaction. **Withdraw payout** also supports a different recipient. Contributions are capped at the target, with any excess returned in the same transaction. These alternatives were not exercised in the recorded November 7 browser walkthrough; see the acceptance record for the remaining manual checks.
-
-The website shows release controls to the creator, whose account pays gas for that transaction. The on-chain `releaseMilestone` function allows any account to release an eligible stage. `withdrawMilestone` and `claimPayout` require the creator.
-
-### Time windows and refunds
-
-| Window | Opens when | Duration on the live contract |
-| --- | --- | --- |
-| Milestone 1 submission | Accepted funding reaches the target | 10 minutes |
-| Milestone 2 submission | Milestone 1 is released | 10 minutes |
-| Approval for either milestone | Its evidence is submitted | 10 minutes |
-
-The contract uses the block timestamp. Evidence and approvals must be included in a block before their deadline. A milestone approved in time can be released after its approval window ends.
-
-- **Funding target missed.** After the funding deadline, any account can click **Finalize funding**. Backers can then use **Claim refund** to recover their full accepted contributions.
-- **Funded project times out.** If the current milestone misses its submission or approval deadline, backers can use **Claim refund** once the page confirms expiry on-chain. The first claim fixes the remaining escrow pool and marks the project **Expired**. Each backer receives their share of that pool in proportion to their accepted contributions, rounded down to a whole wei. Amounts already released to the creator's balance are outside the pool.
-
-The recorded demo also shows **Test Project 02 (#001)** as completed and **Test Project 01 (#000)** as expired with refunds open. Those project cards alone do not establish that refunds were claimed. Use the transaction links in the acceptance record to inspect the verified **#002** workflow separately from gas fees.
-
-## Architecture and repository layout
-
-React and Vite provide the static frontend. Ethers.js reads the contract through the configured RPC and uses MetaMask for signed transactions. The contract stores projects, voting weights and escrow balances on Sepolia. It records evidence descriptions and URLs, while backers review the linked work themselves.
-
-| Path | Responsibility |
+| Command | Description |
 | --- | --- |
-| [`contracts/MilestoneFund.sol`](contracts/MilestoneFund.sol) | Funding, milestone approval, payout and refund rules. |
-| [`src/App.jsx`](src/App.jsx) and [`src/styles.css`](src/styles.css) | Project views, wallet actions and interface styling. |
-| [`src/contract.js`](src/contract.js) and [`src/abi/MilestoneFund.json`](src/abi/MilestoneFund.json) | Contract configuration, providers and the interface used by the frontend. |
-| [`tests/`](tests/) | Contract scenarios and frontend unit tests. |
-| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Pull request checks and GitHub Pages deployment from `main`. |
+| `npm run dev` | Start the development server |
+| `npm test` | Run the full automated test suite |
+| `npm run build` | Produce the static production build in `dist` |
+| `npm run verify:deployment` | Verify the live Sepolia bytecode (network access required) |
+| `npm run compile:contract` | Recompile the Solidity contract and update the ABI |
+| `npm run format:check` | Run formatting checks |
 
-## Build and verify
+## Configuration
+
+Configuration is read from `.env.local`, which is git-ignored. Only public values belong in `VITE_*` variables because they are embedded in the browser build.
+
+| Variable | Purpose |
+| --- | --- |
+| `VITE_CONTRACT_ADDRESS` | Deployed Sepolia contract address; defaults to the live `0x5A5A…964F` deployment |
+| `VITE_SEPOLIA_RPC_URL` | Optional public HTTPS RPC for read-only browsing; when empty, reads go through MetaMask |
+
+## Testing
 
 ```bash
-npm run format:check
 npm test
-npm run build
 ```
 
-Run these commands after `npm ci`. The recorded regression run passed **124 tests**: 30 contract tests, 81 frontend utility/wallet tests and 13 deployment-verifier tests. Tests use a local EVM, simulated wallet calls and saved deployment fixtures. The build writes the production frontend to `dist/`. Run `npm run preview` to serve that build locally.
+The suite contains **111 tests, all passing**. Contract tests deploy the contract inside an in-process EthereumJS VM and drive continuous state with signed transactions — no MetaMask, RPC or test ETH required — under two compilation profiles that reproduce both the repository build and the live deployment. Unit tests cover pure frontend helpers and the simulated wallet, and a `PaymentReceiver` fixture asserts that a rejected ETH transfer rolls the whole transaction back.
 
-GitHub Actions installs dependencies, checks formatting, runs tests and builds the app. Successful runs on `main` publish the build to GitHub Pages with the `/dapp/` base path. For a separate Pages setup, choose **GitHub Actions** as the publishing source and configure the two repository variables shown in [Run locally](#run-locally).
+## Deployment and reproducibility
 
-See the [automated testing notes](docs/automated-testing.md), [manual acceptance record](docs/e2e-test-record.md) and [deployment verification](docs/deployment-verification.md) for evidence and scope. The current deployment matches the local executable after substitutions at compiler-declared immutable locations; its metadata does **not** match. This is reported as `immutable-substitution-match`, not a full runtime match. To repeat the read-only check and save a new evidence bundle, run `npm run verify:deployment`.
+The live contract was deployed on Ethereum Sepolia at [`0x5A5A…964F`](https://sepolia.etherscan.io/address/0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F), with 600-second submission and approval windows set through the constructor. GitHub Actions runs the quality gate (format check, tests, production build) on every pull request and publishes the Vite build to GitHub Pages when `main` passes.
 
-The [October 21 simulation report](TEST-REPORT.md) and older deployment records are historical evidence for a different contract instance. Raw evidence, including original on-chain text and user quotations, is preserved verbatim; the submission documentation is in English.
+`npm run verify:deployment` is a read-only check that compares the on-chain runtime bytecode with a fresh compilation. Because Solidity `immutable` constructor values occupy zero placeholders in the compiled artifact, the tool performs explicit immutable substitution and reports one of three statuses:
 
-## Deploy a separate Sepolia contract
+- `full-match` — bytecode identical including metadata;
+- `immutable-substitution-match` — identical after substituting constructor values (the current live result);
+- `executable-only-match` — executable code matches but metadata differs.
 
-Use this procedure to create an independent instance for your own campaigns.
+Reproducible evidence (runtime hex, standard input JSON and metadata) is written under `docs/evidence/deployment/`.
 
-1. Open [Remix](https://remix.ethereum.org/) and add [`MilestoneFund.sol`](contracts/MilestoneFund.sol).
-2. Match the repository compiler settings. Select Solidity **0.8.24**, enable optimisation with **200 runs** and choose **Paris** as the EVM target.
-3. In **Deploy & Run**, select the browser wallet environment and connect MetaMask to **Ethereum Sepolia**. Select `MilestoneFund` and set the deployment value to **0**. Supply `approvalTimeout` and `submissionTimeout`, in that order, in seconds. Use `600` for each to reproduce the demo windows.
-4. Confirm deployment and set `VITE_CONTRACT_ADDRESS` in `.env.local` to the new contract address. Restart the frontend. If you change the contract interface, run `npm run compile:contract` to regenerate the frontend ABI.
+## Design limitations
 
-See the [Remix deployment guide](https://remix-ide.readthedocs.io/en/latest/run.html) for the wallet connection and deployment controls.
+- Backers still judge whether the evidence meets the milestone's goal, and content behind an external evidence URL can change after submission.
+- A backer supplying more than half the funding can approve a milestone alone.
+- The contract supports two fixed stages and has no separate on-chain dispute resolution process.
+- The 600-second windows are tuned for a demonstration and leave little time to assess complex work.
+- React component-level regression tests are not yet wired in; the test helpers already include a reusable fake wallet for that purpose.
 
-## Troubleshooting
+## License
 
-| Symptom | Check |
-| --- | --- |
-| Explore shows a configuration error | Check `.env.local`, the Sepolia contract address and the RPC URL, then restart Vite. |
-| Transaction buttons are unavailable | Unlock MetaMask, select Sepolia and check that the connected account has the required role. |
-| A transaction fails near a deadline | Check the latest on-chain state and the submission or approval deadline shown for that milestone. |
-| The view looks stale after switching accounts | Confirm the address shown in the header and use **Refresh** in Explore. |
-
-## Course submission
-
-The team submits one package for COMP7610. Use the live site and the [local setup](#run-locally) to reproduce the demonstration from this repository.
-
-| Deliverable | Submission requirement |
-| --- | --- |
-| Demo video | An English video of up to **15 minutes** in high-resolution **MP4** or **MOV**. Explain the idea, show the core features and include a live demonstration. Include presentation slides if prepared. |
-| Project report | A **PDF** covering the background, idea, design, implementation and contribution distribution. |
-| Code repository | The complete runnable source and a detailed README with setup and demonstration instructions. |
-
-Each student submits the peer assignment separately.
+Released under the [MIT License](LICENSE).
