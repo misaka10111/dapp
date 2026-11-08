@@ -1,88 +1,156 @@
-# 现有 Sepolia 部署复现核对
+# Sepolia Deployment Verification
 
-2026-10-22 已从当前源码复现现有合约的**完整运行时代码，包括 CBOR metadata 尾部**。链上地址为 `0x9b824CA674432B390E30A5164a76c04EeAa8f686`，网络为 Ethereum Sepolia，chain ID `11155111`。
+## Current version: 2026-11-07
 
-匹配配置是 **Solidity 0.8.34、关闭优化、Osaka、源码单元名 `MilestoneFund.sol`、LF 换行**。仓库原有 `compile:contract` 使用的 **0.8.24、开启优化、Paris** 产生另一份运行时代码，不能用它声称重现了当前实例。该旧配置可继续用于按该配置进行的其他编译或新部署；本次核验保留它和现有 ABI，不要求重新部署当前合约。
+The source baseline is `4a77279`. This update fixes the verification script and adds tests, documentation and evidence; the contract and frontend ABI are unchanged. Verification now uses the compiler's `evm.deployedBytecode.immutableReferences` output to check each immutable variable's complete byte ranges and every occurrence of that variable. All executable bytes outside those ranges must match exactly. A metadata-only difference is not classified as an immutable substitution match.
 
-## 1. 固定区块证据
-
-| 项目 | 结果 |
+| Item | Result of this read-only verification |
 | --- | --- |
-| 固定区块 | `11966764` |
-| 区块哈希 | `0xde0a441229659355ce5cd74e25c0a5e81a666412bd0a618601cc5fc2ab8ecf18` |
-| 区块时间 | 2026-10-22 11:07:36，北京时间 UTC+8 |
-| 链上运行时代码 | 15,664 字节 |
-| 完整 runtime Keccak-256 | `0xbc583b4ce58bf4e2536884cc463c753de01f711ab07f4096c0ca8c97bd7d6ac0` |
-| 剥离有效 CBOR metadata 及长度字段后 | 15,611 字节 |
-| 执行部分 Keccak-256 | `0xbada2cf00f14da52219ab0e2686e2aba87f573656e5ca38e328de44c4b4e0078` |
-| CBOR 的 `solc` 字节 | `00 08 22`，解码为 `0.8.34`，末尾 `22` 是十六进制34 |
-| 编译出的 ABI 与仓库 ABI | 一致，未重写 ABI 文件 |
+| Network / contract | Sepolia (11155111) / `0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F` |
+| Fixed block | `12081918`, 2026-11-07 14:34:12 (UTC+8) |
+| Block hash | `0xbfe3890624a11ff65b401da54ab681175848e71e5e3dd6cbefe6421a2d282752` |
+| Compiler settings | Solidity 0.8.24, optimizer enabled / 200 runs, Paris, viaIR disabled |
+| Match level / exit code | `immutable-substitution-match` / `0` |
+| Immutables | Two variables, each appearing twice: four 32-byte ranges in total, each containing `600` |
+| Metadata | `metadataMatch=false`; `fullMatch=false`, `substitutedFullMatch=false` |
 
-证据文件相对于本文件所在目录：
+The executable code matches after substituting immutable values at the positions identified by the compiler. **This is not a claim that the complete runtime, including metadata, matches.** The values were read from the runtime at the fixed block; the constructor arguments in the deployment transaction were not independently verified. This is not a security audit. No transaction was signed or sent. The script rechecked the block hash after comparison.
 
-- [核验结果和全部尝试配置](evidence/deployment/verification-11966764.json)
-- [固定区块完整 runtime](evidence/deployment/verification-11966764-runtime.hex)
-- [成功匹配的完整 Standard JSON 编译输入](evidence/deployment/verification-11966764-standard-input.json)
-- [成功匹配的编译器 metadata](evidence/deployment/verification-11966764-metadata.json)
+- [Verification results, settings and file hashes](evidence/deployment/verification-2026-11-07-compiler-references.json)
+- [On-chain runtime](evidence/deployment/verification-2026-11-07-compiler-references-runtime.hex), [Standard JSON compiler input](evidence/deployment/verification-2026-11-07-compiler-references-standard-input.json), [compiler metadata](evidence/deployment/verification-2026-11-07-compiler-references-metadata.json)
+- [Compiler-identified immutable ranges and values](evidence/deployment/verification-2026-11-07-compiler-references-immutable.json)
 
-主结果包含各证据文件的 SHA-256、原始源码与规范化源码的哈希、编译器完整版本、配置、代码哈希和固定区块。runtime 文件是从该区块读取的原始十六进制代码，可用于离线比较。本次只通过 RPC 读取链ID、区块和合约代码，没有账户签名或发送交易。
+The earlier files saved on the same day, `verification-12080309-2026-11-07T01-09-15-627Z*`, used the old heuristic based on two-byte differences and are retained as historical evidence. The current conclusion is based on this `schemaVersion: 2` record. The new record adds `immutableReferences`, `metadataMatch` and `substitutedFullMatch`. Each slot records its variable ID, complete byte range, hexadecimal value and decimal string, avoiding loss of integer precision.
 
-## 2. 完整匹配的配置及源码字节
+### Recheck the current deployment
 
-| 编译项 | 匹配值 |
-| --- | --- |
-| npm 编译器别名 | `solc-deployed` |
-| 完整编译器版本 | `0.8.34+commit.80d5c536.Emscripten.clang` |
-| optimizer | `enabled: false`、`runs: 200` |
-| EVM | `osaka` |
-| viaIR | `false`，编译输入使用默认关闭值 |
-| 源码单元路径 | `MilestoneFund.sol` |
-| 源码内容 | 仓库 `contracts/MilestoneFund.sol`，仅将 CRLF 换行为 LF |
-| metadata | 默认 `bytecodeHash: ipfs`，附加 CBOR |
-| 合约 | `MilestoneFund` |
-
-这里的“源码单元路径”是 Standard JSON `sources` 对象的键，不是要求重命名仓库文件。匹配输入已经保存，复跑时可直接使用，不必手工猜测 Remix 工作区目录。
-
-此次读取的 Windows 工作区源码为9,482字节，SHA-256为 `61958cddee7960cc46aae542ddc83fe8f118c10c347e7313bc470c5a183f4a5b`。仅转换为 LF 后为9,291字节，SHA-256为 `4600e1658299004ebfe8ed9bd9e342c98436fd5b9db400dadf8c5ff64ffb69c4`。转换只在内存中进行，磁盘源码未改动。
-
-采用相同0.8.34配置、但保留CRLF时，剥离metadata后的执行部分完全一致，完整runtime不一致。改成LF后，完整runtime才一致。源码路径、空白字符及编译设置会影响metadata；Solidity将metadata哈希和编译器标记放入运行时代码尾部。[Solidity官方metadata说明](https://docs.soliditylang.org/en/latest/metadata.html)
-
-原有本地编译器为 `0.8.24+commit.e11b9ed9.Emscripten.clang`。其原有优化开启、200 runs、Paris配置输出9,196字节，完整代码和剥离metadata后的执行部分均不匹配现有部署。该差异不能仅解释为换行或metadata差异。
-
-## 3. 复跑线上只读核验
-
-在仓库根目录安装锁定依赖后运行：
-
-```powershell
+```bash
 npm ci
-node scripts/verify-deployment.mjs --block 11966764
+npm run verify:deployment
+# Recheck this fixed block; new files are generated without overwriting existing evidence.
+node scripts/verify-deployment.mjs --address 0x5A5AeaE5553Feb5c5b27FEe5ec8b24E3ED2B964F --block 12081918
 ```
 
-默认输出到 `docs/evidence/deployment/` 下带区块号和时间的新文件，不覆盖本次证据。省略 `--block` 时先取得最新区块，再固定该区块进行读取和比较，完成后重新核对区块哈希。
+| Exit code | Meaning in the current script |
+| --- | --- |
+| `0` | `full-match`: every byte of the original runtime matches; or `immutable-substitution-match`: executable code matches after substitution within compiler-declared ranges, with metadata equality reported separately |
+| `2` | `executable-only-match`: executable code matches, metadata differs, and no actual immutable substitution occurs |
+| `3` | Reading and compilation completed, but no candidate met the matching criteria |
+| `1` | An error, such as an RPC or compilation failure, invalid arguments, missing contract code, or an existing output file |
 
-也可指定RPC、合约和新输出文件名：
+The script does not read `.env.local`. CLI arguments take precedence over environment variables; the default address is shown above. Run `node scripts/verify-deployment.mjs --help` to see the supported environment variables and options. The search stops at an immutable substitution match. A metadata mismatch does not mean that every possible compiler input has been tried.
+
+Recheck this evidence offline, without RPC access:
+
+```bash
+node --input-type=module <<'JS'
+import fs from 'node:fs';
+import solc from 'solc';
+import { compareRuntime } from './scripts/verify-deployment.mjs';
+const prefix = 'docs/evidence/deployment/verification-2026-11-07-compiler-references';
+const input = JSON.parse(fs.readFileSync(prefix + '-standard-input.json', 'utf8'));
+const output = JSON.parse(solc.compile(JSON.stringify(input)));
+const errors = (output.errors || []).filter(e => e.severity === 'error');
+if (errors.length) throw new Error(errors.map(e => e.formattedMessage).join('\n'));
+const artifact = output.contracts['MilestoneFund.sol'].MilestoneFund.evm.deployedBytecode;
+const saved = fs.readFileSync(prefix + '-runtime.hex', 'utf8').trim();
+const result = compareRuntime('0x' + artifact.object, saved, artifact.immutableReferences);
+console.log(result);
+if (!result.immutableMatch || result.metadataMatch) process.exitCode = 1;
+JS
+```
+
+The offline rerun produced the same match level, and the SHA-256 hashes of all accompanying evidence files were verified. The failure path was also checked using an unreachable local RPC endpoint: the script reported `verification-error`, exited with code 1, and did not create success evidence. Run `node --test tests/deployment-verification.test.mjs` for regression tests covering false positives, false negatives and the saved historical evidence. Full test results are documented in [Automated Testing](automated-testing.md).
+
+## Historical record: initial deployment on 2026-10-22
+
+The following record applies only to the initial source version and old address. It preserves the evidence and conclusions from that date and does not establish anything about the current source or new address. To recheck the old deployment, use the historical worktree specified below.
+
+On 2026-10-22, the source at that time reproduced the deployed contract's **complete runtime bytecode, including the CBOR metadata trailer**. The contract address was `0x9b824CA674432B390E30A5164a76c04EeAa8f686` on Ethereum Sepolia, chain ID `11155111`.
+
+The matching settings were **Solidity 0.8.34, optimizer disabled, Osaka, source unit name `MilestoneFund.sol`, and LF line endings**. The repository's original `compile:contract` settings, **0.8.24, optimizer enabled, Paris**, produced different runtime bytecode and could not substantiate a reproduction of that deployment. Those repository settings remained usable for other compilations or new deployments. The verification retained both those settings and the existing ABI; it did not require redeploying the contract.
+
+### 1. Evidence at a fixed block
+
+| Item | Result |
+| --- | --- |
+| Fixed block | `11966764` |
+| Block hash | `0xde0a441229659355ce5cd74e25c0a5e81a666412bd0a618601cc5fc2ab8ecf18` |
+| Block time | 2026-10-22 11:07:36, Beijing time (UTC+8) |
+| On-chain runtime | 15,664 bytes |
+| Full runtime Keccak-256 | `0xbc583b4ce58bf4e2536884cc463c753de01f711ab07f4096c0ca8c97bd7d6ac0` |
+| After removing valid CBOR metadata and its length field | 15,611 bytes |
+| Executable section Keccak-256 | `0xbada2cf00f14da52219ab0e2686e2aba87f573656e5ca38e328de44c4b4e0078` |
+| CBOR `solc` bytes | `00 08 22`, decoded as `0.8.34`; the final `22` is hexadecimal for 34 |
+| Compiled ABI versus repository ABI | Identical; the ABI file was not rewritten |
+
+Evidence files, relative to this document:
+
+- [Verification results and all attempted settings](evidence/deployment/verification-11966764.json)
+- [Complete runtime at the fixed block](evidence/deployment/verification-11966764-runtime.hex)
+- [Complete Standard JSON input for the matching compilation](evidence/deployment/verification-11966764-standard-input.json)
+- [Compiler metadata for the matching compilation](evidence/deployment/verification-11966764-metadata.json)
+
+The main result records the SHA-256 hash of each evidence file, hashes of the original and normalized source, the full compiler version, compiler settings, code hashes and the fixed block. The runtime file contains the original hexadecimal bytecode read at that block and can be used for offline comparison. This verification only read the chain ID, block and contract code through RPC; no account signed or sent a transaction.
+
+### 2. Settings and source bytes for the full match
+
+| Compiler setting | Matching value |
+| --- | --- |
+| npm compiler alias | `solc-deployed` |
+| Full compiler version | `0.8.34+commit.80d5c536.Emscripten.clang` |
+| optimizer | `enabled: false`, `runs: 200` |
+| EVM | `osaka` |
+| viaIR | `false`; the compiler input used the default disabled setting |
+| Source unit path | `MilestoneFund.sol` |
+| Source content | The repository's `contracts/MilestoneFund.sol`, with only CRLF line endings converted to LF |
+| metadata | Default `bytecodeHash: ipfs`, with CBOR appended |
+| Contract | `MilestoneFund` |
+
+The "source unit path" is the key in the Standard JSON `sources` object; it does not require renaming the repository file. The matching input is saved and can be reused directly, without guessing the Remix workspace directory.
+
+The source read from the Windows workspace was 9,482 bytes, with SHA-256 `61958cddee7960cc46aae542ddc83fe8f118c10c347e7313bc470c5a183f4a5b`. After converting line endings to LF, it was 9,291 bytes, with SHA-256 `4600e1658299004ebfe8ed9bd9e342c98436fd5b9db400dadf8c5ff64ffb69c4`. The conversion took place only in memory; the source file on disk was unchanged.
+
+With the same 0.8.34 settings but CRLF line endings, the executable section matched after removing metadata, while the complete runtime did not. The complete runtime matched only after converting to LF. Source paths, whitespace and compiler settings affect metadata; Solidity appends the metadata hash and compiler identifier to the runtime bytecode. [Solidity metadata documentation](https://docs.soliditylang.org/en/latest/metadata.html)
+
+The original local compiler was `0.8.24+commit.e11b9ed9.Emscripten.clang`. With the original settings of optimizer enabled, 200 runs and Paris, it produced 9,196 bytes. Neither the complete runtime nor the executable section with metadata removed matched that deployment. Line endings or metadata alone could not explain the difference.
+
+### 3. Recheck the old deployment without sending transactions
+
+Use the historical source and script in a separate worktree to avoid mixing the current source and default new address with the old block:
+
+```powershell
+git worktree add --detach ../dapp-verification-v1 7d4eba9
+cd ../dapp-verification-v1
+npm ci
+node scripts/verify-deployment.mjs --address 0x9b824CA674432B390E30A5164a76c04EeAa8f686 --block 11966764
+```
+
+By default, the script creates new files under `docs/evidence/deployment/`, named with the block number and timestamp, without overwriting the saved evidence. If `--block` is omitted, it first retrieves the latest block, uses that fixed block for reading and comparison, and rechecks its hash after completion.
+
+You can also specify the RPC endpoint, contract and a new output filename:
 
 ```powershell
 node scripts/verify-deployment.mjs --rpc https://ethereum-sepolia-rpc.publicnode.com --address 0x9b824CA674432B390E30A5164a76c04EeAa8f686 --block 11966764 --out docs/evidence/deployment/my-verification.json --timeout-ms 20000
 $LASTEXITCODE
 ```
 
-地址参数接受合法Ethereum地址并验证checksum。环境变量支持 `SEPOLIA_RPC_URL` / `VITE_SEPOLIA_RPC_URL`、`CONTRACT_ADDRESS` / `VITE_CONTRACT_ADDRESS`、`VERIFY_BLOCK`；CLI参数优先。脚本不会自行读取 `.env.local`。默认只访问公共RPC，不需要私钥。输出中仅记录RPC的origin和完整端点哈希，省略路径及凭据。
+The address argument accepts valid Ethereum addresses and validates the checksum. Supported environment variables are `SEPOLIA_RPC_URL` / `VITE_SEPOLIA_RPC_URL`, `CONTRACT_ADDRESS` / `VITE_CONTRACT_ADDRESS`, and `VERIFY_BLOCK`; CLI arguments take precedence. The script does not automatically read `.env.local`. It uses a public RPC endpoint by default and requires no private key. The output records only the RPC origin and a hash of the complete endpoint, omitting the path and credentials.
 
-| 退出码 | 含义 |
+| Exit code | Meaning |
 | --- | --- |
-| `0` | 至少一个候选配置与完整runtime逐字节一致 |
-| `2` | 只有剥离有效CBOR metadata后的执行部分一致 |
-| `3` | 有效读取与编译完成，但没有匹配候选 |
-| `1` | RPC失败、超时、网络错误、编译失败、无合约代码、参数错误或输出文件已存在等；不能判为通过 |
+| `0` | At least one candidate matches every byte of the complete runtime |
+| `2` | Only the executable section matches after valid CBOR metadata is removed |
+| `3` | Reading and compilation completed successfully, but no candidate matched |
+| `1` | An RPC failure, timeout, network error, compilation failure, missing contract code, invalid argument, existing output file or other error; this is not a pass |
 
-脚本先比较仓库原配置，再有限尝试两个已安装编译器、优化开关及所支持的EVM配置；只有执行部分匹配时，才尝试两种源码单元路径和LF/CRLF换行。最多编译64次，遇到完整匹配立即停止，本次实际编译8次。不会自动下载其他编译器、无限搜索或写入 `src/abi`、`artifacts`。
+The script first checks the repository's original settings, then tries a bounded set of combinations of the two installed compilers, optimizer settings and supported EVM targets. Only when the executable section matches does it try the two source unit paths and LF/CRLF line endings. It allows at most 64 compilations and stops immediately on a full match; this historical run required 8 compilations. It does not download other compilers, search indefinitely, or write to `src/abi` or `artifacts`.
 
-编译采用 Standard JSON 输入，并显式检查编译器返回的错误，不能只看编译进程是否退出成功。[Solidity官方编译器接口说明](https://docs.soliditylang.org/en/latest/using-the-compiler.html#compiler-input-and-output-json-description)
+Compilation uses Standard JSON input and explicitly checks errors returned by the compiler; a successful process exit alone is insufficient. [Solidity compiler interface documentation](https://docs.soliditylang.org/en/latest/using-the-compiler.html#compiler-input-and-output-json-description)
 
-## 4. 使用已保存证据离线复跑
+### 4. Recheck the saved evidence offline
 
-以下PowerShell命令不访问RPC，只用保存的Standard JSON重新编译，再与保存的链上runtime逐字节比较：
+The following PowerShell command does not access RPC. It recompiles the saved Standard JSON input and compares the result byte for byte with the saved on-chain runtime:
 
 ```powershell
 @'
@@ -101,10 +169,10 @@ if (actual !== saved) process.exitCode = 1;
 '@ | node --input-type=module
 ```
 
-本次线上核验退出0；上述离线复跑也得到完整匹配。另以不可达的本机RPC进行失败检查，脚本返回 `verification-error`、退出1，没有误报通过或生成成功证据。
+The historical online verification exited with code 0, and the offline rerun above also produced a full match. A failure check using an unreachable local RPC endpoint returned `verification-error` and exit code 1, without reporting a false pass or creating success evidence.
 
-## 5. 结论范围
+### 5. Scope of the historical conclusion
 
-该证据证明：保存的源码和配置可以生成与指定地址在指定区块的运行时代码完全相同的字节，包括metadata。它比函数selector或ABI相同的检查更强，但不等于安全审计，也不单独证明部署交易的创建字节码或部署者操作历史。
+The evidence establishes that the saved source and settings can generate exactly the same runtime bytes, including metadata, as the specified address at the specified block. This is stronger than checking function selectors or ABI equality, but it is not a security audit and does not independently establish the deployment transaction's creation bytecode or the deployer's actions.
 
-如果以后换了地址、源码或配置而结果仅为 `executable-only-match`，需要准确保留这个级别；要进一步获得完整匹配，应向部署组员取得当时的完整Standard JSON编译输入或metadata文件、精确编译器版本、源码单元路径和原始源码字节。当前这份实例已经完整复现，无须为了统一旧README配置而重部署。
+If a later change to the address, source or settings produces only an `executable-only-match`, that match level must be reported accurately. To pursue a full match, obtain the original complete Standard JSON input or metadata file, exact compiler version, source unit path and original source bytes from the team member who deployed the contract. This historical instance was fully reproduced and did not need redeployment merely to align it with the old README settings.
