@@ -1,0 +1,5 @@
+# Copy this file to worker/.dev.vars for `npm run worker:dev` (Git ignores .dev.vars).
+# Pinata JWT scoped to file pinning only.
+PINATA_JWT=your-pin-only-pinata-jwt
+# Optional shared header key. Remove the line to disable the x-relay-key check.
+RELAY_KEY=choose-a-long-random-string
