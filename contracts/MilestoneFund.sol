@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @title MilestoneFund Lite - two-stage, contribution-weighted crowdfunding.
-/// @notice Educational prototype. No owner, admin withdrawal, or fee. Anyone can
-/// release an approved milestone. Only the creator can claim the released payout.
+/// @title MilestoneFund - two-stage, contribution-weighted crowdfunding.
+/// @notice v2 uses content-addressed evidence: the SHA-256 digest of the IPFS
+/// evidence package is stored on-chain instead of a mutable URL. No owner, admin
+/// withdrawal, or fee. Anyone can release an approved milestone. Only the creator
+/// can claim the released payout.
 contract MilestoneFund {
     enum ProjectStatus { Funding, Successful, Failed, Completed, Expired }
 
@@ -23,7 +25,9 @@ contract MilestoneFund {
     struct Milestone {
         string goal;
         string evidence;
-        string evidenceUrl;
+        // v2: SHA-256 digest of the IPFS evidence package (UnixFS directory, dag-pb).
+        // Full CID is reconstructed as multihash 0x1220 ++ this digest.
+        bytes32 evidenceCid;
         uint256 approvalWeight;
         // The amount released from escrow, including funds credited for later claim.
         uint256 withdrawnAmount;
@@ -55,7 +59,7 @@ contract MilestoneFund {
     event ContributionReceived(uint256 indexed projectId, address indexed backer, uint256 amount);
     event FundingSuccessful(uint256 indexed projectId, uint256 totalRaised);
     event FundingFailed(uint256 indexed projectId);
-    event EvidenceSubmitted(uint256 indexed projectId, uint8 indexed milestone, string evidence, string evidenceUrl);
+    event EvidenceSubmitted(uint256 indexed projectId, uint8 indexed milestone, string evidence, bytes32 evidenceCid);
     event ApprovalCast(uint256 indexed projectId, uint8 indexed milestone, address indexed backer, uint256 weight);
     event MilestoneApproved(uint256 indexed projectId, uint8 indexed milestone);
     event MilestoneReleased(uint256 indexed projectId, uint8 indexed milestone, uint256 amount);
@@ -145,7 +149,9 @@ contract MilestoneFund {
         emit FundingFailed(projectId);
     }
 
-    function submitEvidence(uint256 projectId, uint8 milestone, string calldata evidence, string calldata evidenceUrl)
+    /// @notice evidenceCid is the SHA-256 digest of the IPFS evidence package.
+    /// The full CID is reconstructed off-chain as multihash 0x1220 ++ digest (dag-pb).
+    function submitEvidence(uint256 projectId, uint8 milestone, string calldata evidence, bytes32 evidenceCid)
         external validProject(projectId)
     {
         Project storage p = projects[projectId];
@@ -156,12 +162,12 @@ contract MilestoneFund {
         require(!m.submitted, "Evidence already submitted");
         require(block.timestamp < _milestoneDeadline(projectId, p, m), "Submission window closed");
         require(bytes(evidence).length > 0 && bytes(evidence).length <= 4000, "Invalid evidence");
-        require(bytes(evidenceUrl).length > 0 && bytes(evidenceUrl).length <= 1000, "Invalid evidence URL");
+        require(evidenceCid != bytes32(0), "Missing evidence CID");
         m.evidence = evidence;
-        m.evidenceUrl = evidenceUrl;
+        m.evidenceCid = evidenceCid;
         m.submitted = true;
         m.submittedAt = block.timestamp;
-        emit EvidenceSubmitted(projectId, milestone, evidence, evidenceUrl);
+        emit EvidenceSubmitted(projectId, milestone, evidence, evidenceCid);
     }
 
     function approveMilestone(uint256 projectId, uint8 milestone) external validProject(projectId) {
