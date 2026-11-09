@@ -48,6 +48,10 @@ export const CONFIGURED = CONFIG.configured;
 export const CONFIG_ERROR = CONFIG.error;
 export const ABI = abi;
 
+// Pin relay (Cloudflare Worker). Optional until the creator submits evidence.
+export const PIN_RELAY_URL = (import.meta.env?.VITE_PIN_RELAY_URL ?? "").trim();
+export const PIN_RELAY_KEY = (import.meta.env?.VITE_PIN_RELAY_KEY ?? "").trim();
+
 // Prefer MetaMask specifically, including legacy multi-wallet injection.
 export function injectedWallet() {
   const injected = window.ethereum;

@@ -12,6 +12,7 @@ export default defineConfig({
         manualChunks: {
           ethers: ["ethers"],
           react: ["react", "react-dom"],
+          ipfs: ["multiformats", "@ipld/dag-pb", "@ipld/car", "ipfs-unixfs"],
         },
       },
     },
