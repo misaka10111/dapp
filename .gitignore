@@ -12,3 +12,6 @@ simulation-results.json
 artifacts/
 .gh-token
 .workbuddy/
+.dev.vars
+worker/.dev.vars
+.wrangler/

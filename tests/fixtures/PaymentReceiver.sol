@@ -8,6 +8,7 @@ contract PaymentReceiver {
     MilestoneFund public immutable fund;
     address private immutable owner;
     bool public rejectPayments = true;
+    bytes32 private constant EVIDENCE_CID = bytes32(uint256(0xAB));
 
     constructor(address fundAddress) {
         fund = MilestoneFund(fundAddress);
@@ -18,8 +19,8 @@ contract PaymentReceiver {
         fund.createProject("Receiver project", "Transfer rollback test", target, deadline, "First", "Second");
     }
     function contribute(uint256 projectId) external payable { fund.contribute{value: msg.value}(projectId); }
-    function evidence(uint256 projectId) external { fund.submitEvidence(projectId, 0, "Delivered", "https://example.com/demo"); }
-    function evidenceFor(uint256 projectId, uint8 milestone) external { fund.submitEvidence(projectId, milestone, "Delivered", "https://example.com/demo"); }
+    function evidence(uint256 projectId) external { fund.submitEvidence(projectId, 0, "Delivered", EVIDENCE_CID); }
+    function evidenceFor(uint256 projectId, uint8 milestone) external { fund.submitEvidence(projectId, milestone, "Delivered", EVIDENCE_CID); }
     function withdraw(uint256 projectId) external { fund.withdrawMilestone(projectId, 0); }
     function withdrawFor(uint256 projectId, uint8 milestone) external { fund.withdrawMilestone(projectId, milestone); }
     function claimPayoutTo(uint256 projectId, address payable recipient) external {

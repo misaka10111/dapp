@@ -1462,6 +1462,154 @@ footer .brand {
   color: var(--ink-2);
 }
 
+/* ---------------------------------------------------- IPFS evidence UI */
+.evidence-form {
+  width: 100%;
+}
+.file-picker {
+  position: relative;
+}
+.file-picker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+}
+.file-picker-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  padding: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.file-picker:hover .file-picker-face,
+.file-picker input[type="file"]:focus-visible + .file-picker-face {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.selected-files {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.selected-files li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+.selected-files li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selected-files li small {
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.pin-ready {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cid-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+.cid-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.cid-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.cid-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.cid-toggle button {
+  border: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.cid-toggle button.active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.cid-text {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.cid-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.gateway-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 8px 0 4px;
+}
+.gateway-links a {
+  font-size: 12px;
+  font-weight: 500;
+}
+.verify-result {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  font-weight: 550;
+}
+.verify-result.match {
+  color: var(--success);
+  background: var(--success-soft);
+  border: 1px solid #c5edda;
+}
+.verify-result.mismatch {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid #f6c9c4;
+}
+
 /* ---------------------------------------------------------------- responsive */
 @media (max-width: 1120px) {
   .workspace,

@@ -26,9 +26,10 @@ import {
   percent,
   positiveEth,
   remainingText,
-  safeUrl,
   shortAddress,
 } from "./utils.js";
+import EvidenceForm from "./EvidenceForm.jsx";
+import EvidenceView from "./EvidenceView.jsx";
 
 const STATUS = ["Funding", "Successful", "Failed", "Completed", "Expired"];
 const TONE = ["funding", "successful", "failed", "completed", "expired"];
@@ -335,29 +336,11 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
       setError(errorMessage(e));
     }
   }
-  async function evidence(event, index) {
-    event.preventDefault();
+  async function submitEvidenceTx(index, digest, text) {
     setError("");
-    try {
-      const fields = new FormData(event.currentTarget);
-      const text = fields.get("evidence").trim(),
-        url = fields.get("url").trim();
-      if (!safeUrl(url))
-        throw new Error("Use a complete HTTP or HTTPS GitHub / demo URL.");
-      if (
-        !text ||
-        new TextEncoder().encode(text).length > 4000 ||
-        new TextEncoder().encode(url).length > 1000
-      )
-        throw new Error(
-          "Evidence must be 1–4000 UTF-8 bytes and URL at most 1000 bytes.",
-        );
-      await transact(`Submit milestone ${index + 1}`, (c) =>
-        c.submitEvidence(id, index, text, url),
-      );
-    } catch (e) {
-      setError(errorMessage(e));
-    }
+    await transact(`Submit milestone ${index + 1}`, (c) =>
+      c.submitEvidence(id, index, text, digest),
+    );
   }
   async function withdrawPayout(event) {
     event.preventDefault();
@@ -622,21 +605,7 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
             </div>
 
             {m.submitted && (
-              <div className="evidence">
-                <p className="eyebrow">Creator’s evidence</p>
-                <p>{m.evidence}</p>
-                {safeUrl(m.evidenceUrl) ? (
-                  <a
-                    href={safeUrl(m.evidenceUrl)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Open GitHub / demo ↗
-                  </a>
-                ) : (
-                  <p className="muted">Unsupported link: {m.evidenceUrl}</p>
-                )}
-              </div>
+              <EvidenceView evidence={m.evidence} digest={m.evidenceCid} />
             )}
 
             <div className="approval-caption">
@@ -678,31 +647,14 @@ function ProjectDetails({ data, account, ready, busy, now, transact, onClose }) 
 
             <div className="milestone-actions">
               {current && milestoneWindow?.open && !m.submitted && isCreator && (
-                <form style={{ width: "100%" }} onSubmit={(e) => evidence(e, index)}>
-                  <fieldset disabled={!ready || busy}>
-                    <label>
-                      What did you deliver?
-                      <textarea
-                        name="evidence"
-                        required
-                        maxLength={4000}
-                        rows={3}
-                        placeholder="Summarise the deliverable for your backers"
-                      />
-                    </label>
-                    <label>
-                      GitHub / demo URL
-                      <input
-                        name="url"
-                        type="url"
-                        required
-                        maxLength={1000}
-                        placeholder="https://github.com/…"
-                      />
-                    </label>
-                    <button className="primary">Submit evidence</button>
-                  </fieldset>
-                </form>
+                <div style={{ width: "100%" }}>
+                  <EvidenceForm
+                    index={index}
+                    ready={ready}
+                    busy={busy}
+                    onSubmit={submitEvidenceTx}
+                  />
+                </div>
               )}
               {current && milestoneWindow?.open && m.submitted && !m.approved && contribution > 0n && (
                 <button
@@ -1231,7 +1183,8 @@ export default function App() {
                   <div>
                     <strong>Creator submits evidence</strong>
                     <span className="body">
-                      A summary plus a GitHub or demo link for each milestone.
+                      Deliverables are packed into an IPFS CID and pinned before
+                      the digest is recorded on-chain.
                     </span>
                   </div>
                 </div>

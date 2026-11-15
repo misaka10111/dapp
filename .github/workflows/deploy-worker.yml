@@ -1,0 +1,46 @@
+name: Deploy pin relay
+
+# Deploys the Cloudflare Worker only when its own files change, plus a manual
+# trigger for re-deploys. Secrets such as PINATA_JWT are set once with
+# `wrangler secret put` and persist independently of this workflow.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "worker/**"
+      - "src/ipfs.js"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-worker-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-worker:
+    name: deploy pin relay
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy with Wrangler
+        env:
+          # Repository secret: scoped Cloudflare API token allowed to deploy Workers.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.WRANGLER_API_TOKEN }}
+          # Optional repository variable when the token cannot infer the account.
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config worker/wrangler.jsonc

@@ -3,7 +3,8 @@ import { test } from "node:test";
 import { ZeroAddress } from "ethers";
 import { compileFixtures, localChain, profiles } from "./helpers/local-chain.mjs";
 
-const evidence = (id, stage) => [id, stage, "Delivered for testing", "https://example.com/demo"];
+const EVIDENCE_CID = "0x" + "ab".repeat(32);
+const evidence = (id, stage) => [id, stage, "Delivered for testing", EVIDENCE_CID];
 const event = (result, name) => {
   const matches = result.events.filter((entry) => entry.name === name);
   assert.equal(matches.length, 1, `Expected one ${name} event`);
@@ -81,6 +82,23 @@ for (const profile of profiles) {
     await assertWindow(h, id, 0n, false);
     await h.send("A", "withdrawMilestone", [id, 1], { revert: "Project not successful" });
     await h.send("B", "claimRefund", [id], { revert: "Project not failed" });
+  });
+
+  test(`${profile.name}: evidence requires a nonzero CID and stores the digest`, async () => {
+    const h = await localChain(artifacts);
+    const id = await h.create();
+    await h.send("B", "contribute", [id], { value: 100n });
+    await h.send(
+      "A",
+      "submitEvidence",
+      [id, 0, "Delivered", "0x" + "00".repeat(32)],
+      { revert: "Missing evidence CID" },
+    );
+    const result = await h.send("A", "submitEvidence", evidence(id, 0));
+    assert.equal(event(result, "EvidenceSubmitted").evidenceCid, EVIDENCE_CID);
+    const milestone = await h.read("getMilestone", [id, 0]);
+    assert.equal(milestone.evidenceCid, EVIDENCE_CID);
+    assert.equal(milestone.submitted, true);
   });
 
   test(`${profile.name}: contributions cap at the target and refund the excess; zero first payout preserves every wei`, async () => {
